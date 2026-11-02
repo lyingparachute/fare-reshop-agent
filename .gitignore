@@ -1,0 +1,14 @@
+.private/
+.claude/*
+!.claude/rules/
+.env
+.env.*
+.DS_Store
+.idea/
+*.iml
+out/
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+CLAUDE.local.md
