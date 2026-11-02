@@ -1,6 +1,7 @@
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import ClassVar
 
 from fare_reshop_agent.reshopping.domain.evaluation import ApprovalFlag, OfferEvaluation
 from fare_reshop_agent.reshopping.domain.exchange_rate import RateUsage
@@ -21,6 +22,7 @@ class DecidedBy(StrEnum):
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class Rebook:
+    status: ClassVar[Status] = Status.REBOOK
     ref: BookingRef
     offer_id: OfferId
     nominal_saving: Money
@@ -33,6 +35,7 @@ class Rebook:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class Keep:
+    status: ClassVar[Status] = Status.KEEP
     ref: BookingRef
     reasoning: str
     minimum_saving: Money
@@ -42,6 +45,7 @@ class Keep:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class Invalid:
+    status: ClassVar[Status] = Status.INVALID_DATA
     ref: BookingRef
     reason: str
 

@@ -12,9 +12,9 @@ This ExecPlan is a living document. Progress, Surprises & Discoveries, Decision 
 - [x] (2026-11-02) Milestone 4: the fixture JSON adapter for `ReshopSource`, with the rejection and data-issue rules. 11 of the 14 "Fixture and rate names" present (the other 3 are milestone 5). Checks green (`72 passed`). Two critic rounds.
 - [x] (2026-11-02) Milestone 5: the TOML rate adapter for `ExchangeRates`, the TOML policy reader, the reader error types, and the two config files. DoD Fixture and rate names: `14`. Checks green (`85 passed`). Two critic rounds (round 2: APPROVE, two small fixes applied).
 - [x] (2026-11-02) Milestone 6: review orchestration in `none` mode, with the sample-data oracle test. DoD Orchestration names: `14`. Checks green (`99 passed`). Critic: APPROVE, three small fixes applied.
-- [ ] Milestone 7: composition (the `none` graph, `SetupError`, the color setting) and the `review` command with JSON output.
-- [ ] Milestone 8: table output with the REASON column, the three-line error format, exit codes and `--debug`.
-- [ ] Milestone 9: `fare-reshop doctor`, `start.sh` and the first-run tests in `tests/test_cli.py`.
+- [x] (2026-11-02) Milestone 7: composition (the `none` graph, `SetupError`) and the `review` command with JSON output. DoD Default run exits 0: `0`. JSON rates: `3`. JSON dates: `1` and `3`. Checks green (`109 passed`). Critic: fixes applied (setup error tests, key order tests, one status source).
+- [x] (2026-11-02) Milestone 8: table output with the REASON column, the three-line error format, exit codes and `--debug`. DoD Table rebooks QX7T2A: `1`; RT5K8B: `1`; Table keeps: `3`; Only two rebooks: `2`; Table reasons: `2` and `1`; Layering: `1`. Checks green (`119 passed`). Critic findings fixed.
+- [x] (2026-11-02) Milestone 9: `fare-reshop doctor`, `start.sh` and the first-run tests in `tests/test_cli.py`. DoD Doctor passes: `0`. start.sh asks: `1` and `1`. CLI names: `14`. Checks green (`123 passed`). Critic findings fixed.
 - [ ] Milestone 10: `GLOSSARY.md`, the ADR in `docs/adr/`, and the `AGENTS.md` wording changes.
 - [ ] Milestone 11: the scenario data set in `fixtures/scenarios/`, the `--data` flag, and the scenario tests (D34, L12).
 - [ ] Definition of done: every checkbox below ticked with its command output recorded here.
@@ -404,6 +404,9 @@ Proof: the DoD items "Scenario rule names", "Scenario CLI names" and "Scenario t
 - Prototype result: discard. pydantic 2.14.2 (pydantic-core 2.50.2) reads a JSON number into a `Decimal` field through a binary float, so `model_validate_json` printed `1234567.123456789` for `1234567.123456789012345`. Path two, `json.loads(text, parse_float=Decimal)` followed by `model_validate`, printed `1234567.123456789012345` with no `FloatOperation`. The fixture adapter uses path two.
   Evidence: scratch script run with `uv run python -I`; output `path one 1234567.123456789 FAIL`, `path two 1234567.123456789012345 PASS`. A `Field(alias="_comment")` on a model with `extra="forbid"` accepted the top-level `_comment` key. Docs read: the pydantic-core JSON input code turns a JSON float into text through a 64-bit float before it builds the `Decimal`, which explains the lost digits. `.claude/rules/python.md` now names path two only.
 
+- Observation: the two import checks of L8 (`fare_reshop_agent` and `pydantic`) cannot fail through the CLI, because the CLI imports both before `doctor` runs, and `uv run` syncs the environment first. They stay because L8 locks them.
+  Evidence: `uv run fare-reshop doctor` prints `[ok]` for both on every run; the failure branch is reachable only when the package is imported without its dependencies.
+
 ## Decision Log
 
 - Decision: money accepts a `Decimal`, text or an integer, refuses a float or a bool, and raises on adding or comparing two currencies, equality included (L2, milestone 2). A round-2 critic proposed that equality return False; dismissed, because `.claude/rules/python.md` (the owner's rule) says comparing two currencies raises.
@@ -635,6 +638,30 @@ Proof: the DoD items "Scenario rule names", "Scenario CLI names" and "Scenario t
 
 - Decision: `review_snapshot(source, rates, policy)` returns a `ReviewReport` (mode, capture time, data issues, results sorted by booking reference). `ReviewMode` holds only `none`; plans 02 and 03 add members.
   Rationale: the report is the one value the CLI renders; the mode belongs to the run, not the domain.
+  Date/Author: 2026-11-02, implementer.
+
+- Decision: the `doctor` subcommand is registered in milestone 9 with its body, and `color_setting` arrives in milestone 8 with the table, its only user.
+  Rationale: a registered no-op subcommand would exit 0 without doing anything, and a function with no caller is dead code until then.
+  Date/Author: 2026-11-02, implementer.
+
+- Decision: each result type carries its status as a class constant (`Rebook.status` is `REBOOK`, and so on), and the renderers read it from there.
+  Rationale: D9 says the status comes from the type; one constant per type gives one source for the JSON and the table.
+  Date/Author: 2026-11-02, implementer.
+
+- Decision: the seats rule reason reads `N seats available, M needed`.
+  Rationale: the first wording printed `1 passengers`.
+  Date/Author: 2026-11-02, implementer.
+
+- Decision: `test_error_format_hides_traceback_without_debug` triggers an internal error, not a setup error: a fixture file of 100 000 `[` characters makes the standard JSON parser raise `RecursionError`. The same stand-in drives `test_debug_flag_prints_traceback`.
+  Rationale: a setup error never prints a traceback, so a test built on one would pass without checking anything. The stand-in needs no test-only hook in the product code.
+  Date/Author: 2026-11-02, implementer.
+
+- Decision: `color_setting(environ, is_terminal)` and `standard_output_color()` live in `composition/color.py`; the table colors only the status word and pads outside the escape codes. Error text is collapsed to one line per label, so the three-line format holds for any message.
+  Rationale: L7 and critic findings on multi-line messages and padding inside escapes.
+  Date/Author: 2026-11-02, implementer.
+
+- Decision: the doctor and the review read one list of files, `REVIEW_FILES` in `composition/review.py`; the doctor checks readability only, as L8 says. `start.sh` defines the uv install command once, confirmed against the uv installation docs: `curl -LsSf https://astral.sh/uv/install.sh | sh`.
+  Rationale: critic: a second hand-kept list would drift when milestone 11 adds the scenario files.
   Date/Author: 2026-11-02, implementer.
 
 ## Outcomes & Retrospective

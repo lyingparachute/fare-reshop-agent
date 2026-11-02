@@ -146,7 +146,7 @@ def _stops_rule(booking: Booking, offer: Offer) -> RuleResult:
 
 
 def _seats_rule(booking: Booking, offer: Offer) -> RuleResult:
-    counts = f"{offer.seats_available} seats for {booking.passengers} passengers"
+    counts = f"{offer.seats_available} seats available, {booking.passengers} needed"
     return _rule(
         RuleName.SEATS,
         failed=offer.seats_available < booking.passengers,
