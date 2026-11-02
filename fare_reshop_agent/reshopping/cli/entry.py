@@ -10,19 +10,36 @@ from fare_reshop_agent.reshopping.cli.json_output import render_json
 from fare_reshop_agent.reshopping.cli.table_output import render_table
 from fare_reshop_agent.reshopping.composition.color import standard_output_color
 from fare_reshop_agent.reshopping.composition.doctor import Failed, run_doctor
+from fare_reshop_agent.reshopping.composition.recording import (
+    RecordedRun,
+    re_record_command,
+    record_environment_review,
+    review_recorded,
+)
 from fare_reshop_agent.reshopping.composition.review import (
     DataSet,
     review_with_environment_model,
     review_without_model,
 )
 from fare_reshop_agent.reshopping.composition.setup_error import SetupError
-from fare_reshop_agent.reshopping.orchestration.review import ReviewMode
+from fare_reshop_agent.reshopping.orchestration.recording import RecordingStopped
+from fare_reshop_agent.reshopping.orchestration.replay import (
+    DigestMismatch,
+    HeaderChanged,
+    LeftoverTurn,
+    MissingTurn,
+    StaleReason,
+    StaleRecording,
+)
+from fare_reshop_agent.reshopping.orchestration.review import ReviewMode, ReviewReport
 
 PROGRAM_NAME = "fare-reshop"
 REVIEW_COMMAND = "review"
 DOCTOR_COMMAND = "doctor"
 EXIT_INTERNAL_ERROR = 1
 EXIT_SETUP_ERROR = 2
+EXIT_STALE_RECORDING = 3
+RECORD_NEEDS_OPENAI = "record needs --model openai"
 
 
 class OutputFormat(StrEnum):
@@ -92,6 +109,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=OutputFormat.JSON.value,
         help="output format (default: %(default)s)",
     )
+    review.add_argument(
+        "--record",
+        action="store_true",
+        help="save the live run as the data set's recording (only with --model openai)",
+    )
     commands.add_parser(
         DOCTOR_COMMAND, parents=[common], help="check that everything the review needs is in place"
     )
@@ -110,10 +132,11 @@ def run(argv: Sequence[str]) -> int:
         return _report_setup_error(err)
     try:
         if arguments.command == REVIEW_COMMAND:
-            print(
-                _render_review(
-                    ReviewMode(arguments.model), arguments.data, OutputFormat(arguments.format)
-                )
+            return _review(
+                ReviewMode(arguments.model),
+                arguments.data,
+                OutputFormat(arguments.format),
+                record=arguments.record,
             )
         elif arguments.command == DOCTOR_COMMAND:
             return _doctor()
@@ -134,14 +157,45 @@ def run(argv: Sequence[str]) -> int:
     return 0
 
 
-def _render_review(mode: ReviewMode, data_set: DataSet, output_format: OutputFormat) -> str:
+def _review(
+    mode: ReviewMode, data_set: DataSet, output_format: OutputFormat, *, record: bool
+) -> int:
+    if record:
+        return _record(mode, data_set, output_format)
     match mode:
         case ReviewMode.NONE:
             report = review_without_model(data_set)
         case ReviewMode.OPENAI:
             report = review_with_environment_model(data_set)
+        case ReviewMode.RECORDED:
+            try:
+                report = review_recorded(data_set)
+            except StaleRecording as err:
+                return emit_stale_recording(err, data_set)
         case _:
             assert_never(mode)
+    print(render_report(report, output_format))
+    return 0
+
+
+def _record(mode: ReviewMode, data_set: DataSet, output_format: OutputFormat) -> int:
+    if mode is not ReviewMode.OPENAI:
+        raise SetupError(
+            error=RECORD_NEEDS_OPENAI,
+            reason="only a live model run can be recorded",
+            fix=re_record_command(data_set),
+        )
+    outcome = record_environment_review(data_set)
+    match outcome:
+        case RecordedRun():
+            return emit_recorded_run(outcome, output_format)
+        case RecordingStopped():
+            return emit_recording_stopped(outcome, data_set)
+        case _:
+            assert_never(outcome)
+
+
+def render_report(report: ReviewReport, output_format: OutputFormat) -> str:
     match output_format:
         case OutputFormat.JSON:
             return render_json(report)
@@ -149,6 +203,47 @@ def _render_review(mode: ReviewMode, data_set: DataSet, output_format: OutputFor
             return render_table(report, standard_output_color())
         case _:
             assert_never(output_format)
+
+
+def emit_recorded_run(run: RecordedRun, output_format: OutputFormat) -> int:
+    print(render_report(run.report, output_format))
+    print(f"recording written to {run.path}", file=sys.stderr)
+    return 0
+
+
+def emit_recording_stopped(stopped: RecordingStopped, data_set: DataSet) -> int:
+    return _report(
+        EXIT_SETUP_ERROR,
+        error=f"booking {stopped.booking}: recording stopped",
+        reason=stopped.code.value,
+        fix=re_record_command(data_set),
+    )
+
+
+def emit_stale_recording(err: StaleRecording, data_set: DataSet) -> int:
+    return _report(
+        EXIT_STALE_RECORDING,
+        error="stale recording: " + "; ".join(_stale_text(reason) for reason in err.reasons),
+        reason=(
+            "the recording answers questions the current data, policy, rates, prompt, tools"
+            " or review rules no longer ask, so its replies cannot be replayed"
+        ),
+        fix=re_record_command(data_set),
+    )
+
+
+def _stale_text(reason: StaleReason) -> str:
+    match reason:
+        case HeaderChanged():
+            return f"{reason.input.value} changed"
+        case DigestMismatch():
+            return f"booking {reason.booking} turn {reason.turn} saw a different transcript"
+        case MissingTurn():
+            return f"booking {reason.booking} turn {reason.turn} is missing"
+        case LeftoverTurn():
+            return f"booking {reason.booking} turn {reason.turn} was recorded but never asked for"
+        case _:
+            assert_never(reason)
 
 
 def _doctor() -> int:

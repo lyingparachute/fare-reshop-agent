@@ -71,8 +71,7 @@ def review_with_live_model(
     model_factory: Callable[[Mapping[str, str]], AgentModel] = openai_model,
 ) -> ReviewReport:
     model = model_factory(environ)
-    prompt = Prompt(data=files(PROMPT_PACKAGE).joinpath(PROMPT_FILE).read_bytes())
-    agent = ReviewAgent(model=model, prompt=prompt, mode=ReviewMode.OPENAI)
+    agent = ReviewAgent(model=model, prompt=review_prompt(), mode=ReviewMode.OPENAI)
     try:
         return review_with_model(
             JsonFixtureSource(data_set_folder(data_set)),
@@ -88,6 +87,10 @@ def review_with_live_model(
 
 def review_with_environment_model(data_set: DataSet) -> ReviewReport:
     return review_with_live_model(data_set, os.environ)
+
+
+def review_prompt() -> Prompt:
+    return Prompt(data=files(PROMPT_PACKAGE).joinpath(PROMPT_FILE).read_bytes())
 
 
 def data_set_folder(data_set: DataSet) -> Path:

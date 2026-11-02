@@ -2,10 +2,8 @@ import dataclasses
 import hashlib
 import json
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
 from decimal import Decimal
 from pathlib import Path
-from typing import Unpack
 
 import httpx2
 import pytest
@@ -34,10 +32,6 @@ from fare_reshop_agent.reshopping.infrastructure.openai.provider_errors import (
     ProviderAuthenticationError,
     ProviderModelNotFoundError,
     ProviderPermissionError,
-)
-from fare_reshop_agent.reshopping.infrastructure.openai.request_builder import (
-    ModelSettings,
-    ResponseRequest,
 )
 from fare_reshop_agent.reshopping.infrastructure.openai.responses_model import (
     OpenAIResponsesModel,
@@ -78,6 +72,7 @@ from fare_reshop_agent.reshopping.orchestration.review import (
     review_with_model,
 )
 
+from openai_stub import STUB_SETTINGS, StubResponsesClient, stub_message, stub_response
 from sample_data import (
     DEMO_RATES,
     GBP,
@@ -707,19 +702,6 @@ def test_mixed_reply_on_the_last_turn_is_bad_final_answer() -> None:
     assert result["incomplete_reason"] == "bad_final_answer"
 
 
-@dataclass(slots=True, kw_only=True)
-class StubResponsesClient:
-    outcome: Response | APIError
-    requests: list[ResponseRequest] = field(default_factory=list)
-
-    def create(self, **request: Unpack[ResponseRequest]) -> Response:
-        self.requests.append(request)
-        if isinstance(self.outcome, APIError):
-            raise self.outcome
-        return self.outcome
-
-
-STUB_SETTINGS = ModelSettings(model="gpt-test", max_output_tokens=2000)
 STUB_REQUEST = httpx2.Request("POST", "https://api.openai.com/v1/responses")
 STUB_TRANSCRIPT = Transcript(
     booking_ref=BookingRef("ABC123"),
@@ -743,39 +725,6 @@ STUB_TRANSCRIPT = Transcript(
         ToolResultItem(call_id="call_1_1", result='{"ok":true}'),
     ),
 )
-
-
-def stub_response(output: list[dict[str, object]]) -> Response:
-    return Response.model_validate(
-        {
-            "id": "resp_1",
-            "created_at": 1,
-            "model": "gpt-test",
-            "object": "response",
-            "output": output,
-            "parallel_tool_calls": False,
-            "tool_choice": "auto",
-            "tools": [],
-            "status": "completed",
-            "usage": {
-                "input_tokens": 120,
-                "input_tokens_details": {"cache_write_tokens": 0, "cached_tokens": 0},
-                "output_tokens": 30,
-                "output_tokens_details": {"reasoning_tokens": 0},
-                "total_tokens": 150,
-            },
-        }
-    )
-
-
-def stub_message(*content: dict[str, object]) -> dict[str, object]:
-    return {
-        "type": "message",
-        "id": "msg_1",
-        "role": "assistant",
-        "status": "completed",
-        "content": list(content),
-    }
 
 
 def stub_status_error(error_class: type[APIStatusError], status: int) -> APIStatusError:

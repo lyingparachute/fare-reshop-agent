@@ -21,6 +21,7 @@ from fare_reshop_agent.reshopping.orchestration.agent_review import (
     NeedsReview,
 )
 from fare_reshop_agent.reshopping.orchestration.booking_loop import Trace
+from fare_reshop_agent.reshopping.orchestration.replay import RecordedTrace
 from fare_reshop_agent.reshopping.orchestration.review import ReviewReport, ReviewRow
 
 SCHEMA_VERSION = 1
@@ -133,14 +134,36 @@ def _rules_judgement(reasoning: str, rules: Rebook | Keep) -> dict[str, Json]:
     }
 
 
-def _trace(trace: Trace) -> dict[str, Json]:
+def _trace(trace: Trace | RecordedTrace) -> dict[str, Json]:
+    match trace:
+        case Trace():
+            return {
+                "prompt_version": trace.prompt_version,
+                "turns": trace.turns,
+                "usage": _usage(trace),
+                **_calls_and_error(trace),
+            }
+        case RecordedTrace():
+            return {
+                "prompt_version": trace.trace.prompt_version,
+                "turns": trace.trace.turns,
+                "recorded_model": trace.recorded_model,
+                "recorded_usage": _usage(trace.trace),
+                **_calls_and_error(trace.trace),
+            }
+        case _:
+            assert_never(trace)
+
+
+def _usage(trace: Trace) -> dict[str, Json]:
     return {
-        "prompt_version": trace.prompt_version,
-        "turns": trace.turns,
-        "usage": {
-            "input_tokens": trace.usage.input_tokens,
-            "output_tokens": trace.usage.output_tokens,
-        },
+        "input_tokens": trace.usage.input_tokens,
+        "output_tokens": trace.usage.output_tokens,
+    }
+
+
+def _calls_and_error(trace: Trace) -> dict[str, Json]:
+    return {
         "tool_calls": [
             {"name": call.name, "arguments": call.arguments, "ok": call.ok}
             for call in trace.tool_calls

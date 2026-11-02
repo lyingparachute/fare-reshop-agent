@@ -31,6 +31,18 @@ class ScriptedModel:
         return [transcript for transcript in self.shown if transcript.booking_ref == ref]
 
 
+class RaisingModel:
+    def __init__(self, error: Exception) -> None:
+        self._error = error
+
+    @property
+    def model_name(self) -> str:
+        return "raising"
+
+    def next_step(self, transcript: Transcript) -> ModelReply:
+        raise self._error
+
+
 def call(name: str, arguments: str = "{}") -> ToolCallRequest:
     return ToolCallRequest(name=name, arguments=arguments)
 

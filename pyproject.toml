@@ -38,7 +38,7 @@ ignore = ["TRY003"]
 "fare_reshop_agent/reshopping/composition/live_model.py" = ["PLC0415"]
 
 [tool.ruff.lint.isort]
-known-local-folder = ["sample_data", "scripted_model"]
+known-local-folder = ["cli_process", "openai_stub", "sample_data", "scripted_model"]
 
 [tool.mypy]
 strict = true

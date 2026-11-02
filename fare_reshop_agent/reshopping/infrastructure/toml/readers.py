@@ -46,6 +46,10 @@ class TomlExchangeRates:
     def __init__(self, rates: Sequence[ExchangeRate]) -> None:
         self._rates = tuple(rates)
 
+    @property
+    def entries(self) -> tuple[ExchangeRate, ...]:
+        return self._rates
+
     def find_rate(self, source: Currency, target: Currency) -> ExchangeRate | NoRate:
         for rate in self._rates:
             if {rate.base, rate.quote} == {source, target}:

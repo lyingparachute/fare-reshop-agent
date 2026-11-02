@@ -26,6 +26,7 @@ from fare_reshop_agent.reshopping.orchestration.agent_model import AgentModel, P
 from fare_reshop_agent.reshopping.orchestration.agent_review import AgentOutcome, judge
 from fare_reshop_agent.reshopping.orchestration.booking_loop import Trace, run_booking_loop
 from fare_reshop_agent.reshopping.orchestration.booking_tools import BookingTools
+from fare_reshop_agent.reshopping.orchestration.replay import RecordedTrace
 
 DEPARTS_BEFORE_CAPTURE = "departs before the capture time"
 
@@ -33,12 +34,13 @@ DEPARTS_BEFORE_CAPTURE = "departs before the capture time"
 class ReviewMode(StrEnum):
     NONE = "none"
     OPENAI = "openai"
+    RECORDED = "recorded"
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ReviewRow:
     outcome: AgentOutcome
-    trace: Trace | None
+    trace: Trace | RecordedTrace | None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
