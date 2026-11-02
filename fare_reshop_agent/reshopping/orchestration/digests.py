@@ -24,6 +24,10 @@ from fare_reshop_agent.reshopping.orchestration.canonical_json import (
 MONEY_PLACES = 2
 
 
+class MoneyTooPrecise(ValueError):
+    pass
+
+
 def digest(value: JsonValue) -> str:
     return hashlib.sha256(canonical_json(value).encode(TEXT_ENCODING)).hexdigest()
 
@@ -35,7 +39,7 @@ def transcript_digest(transcript: Transcript) -> str:
 def money_projection(money: Money) -> dict[str, JsonValue]:
     exponent = money.amount.as_tuple().exponent
     if not isinstance(exponent, int) or -exponent > MONEY_PLACES:
-        raise ValueError(
+        raise MoneyTooPrecise(
             f"money in a digest has at most {MONEY_PLACES} decimal places,"
             f" got {money.amount} {money.currency}"
         )

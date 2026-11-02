@@ -3,7 +3,6 @@ import hashlib
 import json
 from collections.abc import Mapping, Sequence
 from decimal import Decimal
-from pathlib import Path
 
 import httpx2
 import pytest
@@ -78,6 +77,7 @@ from sample_data import (
     GBP,
     OF_1001,
     POLICY,
+    PROMPT_FILE,
     QX7T2A,
     REPO_CONFIG,
     REPO_FIXTURES,
@@ -89,9 +89,6 @@ from sample_data import (
     with_bookings,
 )
 from scripted_model import TURN_USAGE, ScriptedModel, call, calls, final, keep, rebook
-
-PACKAGE = Path(__file__).resolve().parent.parent / "fare_reshop_agent" / "reshopping"
-PROMPT_FILE = PACKAGE / "orchestration" / "review_prompt.md"
 
 
 def test_canonical_json_sorts_keys_and_rejects_float() -> None:

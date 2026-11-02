@@ -275,7 +275,9 @@ def test_table_output_has_no_color_when_piped() -> None:
 
 
 def test_no_color_variable_turns_color_off() -> None:
-    output = run_on_terminal("review", "--format", "table", environ={**os.environ, "NO_COLOR": "1"})
+    output = run_on_terminal(
+        "review", "--model", "none", "--format", "table", environ={**os.environ, "NO_COLOR": "1"}
+    )
 
     assert "REBOOK" in output
     assert ESCAPE not in output
@@ -284,7 +286,7 @@ def test_no_color_variable_turns_color_off() -> None:
 def test_table_output_is_colored_on_a_terminal() -> None:
     environ = {key: value for key, value in os.environ.items() if key != "NO_COLOR"}
 
-    output = run_on_terminal("review", "--format", "table", environ=environ)
+    output = run_on_terminal("review", "--model", "none", "--format", "table", environ=environ)
 
     assert f"{ESCAPE}32mREBOOK" in output
 
@@ -293,7 +295,7 @@ def test_error_format_for_missing_fixture_has_three_lines(tmp_path: Path) -> Non
     root = copied_repo_data(tmp_path)
     (root / "fixtures" / "pnrs.json").unlink()
 
-    completed = run_cli("review", cwd=root)
+    completed = run_cli("review", "--model", "none", cwd=root)
 
     assert completed.returncode == EXIT_SETUP_ERROR
     assert completed.stdout == ""
@@ -308,7 +310,7 @@ def test_error_format_hides_traceback_without_debug(tmp_path: Path) -> None:
     root = copied_repo_data(tmp_path)
     (root / "fixtures" / "pnrs.json").write_text("[" * 100_000, encoding="utf-8")
 
-    completed = run_cli("review", cwd=root)
+    completed = run_cli("review", "--model", "none", cwd=root)
 
     assert completed.returncode == EXIT_INTERNAL_ERROR
     assert three_lines(completed.stderr) == ERROR_PREFIXES
@@ -319,7 +321,7 @@ def test_debug_flag_prints_traceback(tmp_path: Path) -> None:
     root = copied_repo_data(tmp_path)
     (root / "fixtures" / "pnrs.json").write_text("[" * 100_000, encoding="utf-8")
 
-    completed = run_cli("review", "--debug", cwd=root)
+    completed = run_cli("review", "--model", "none", "--debug", cwd=root)
 
     lines = completed.stderr.splitlines()
     assert completed.returncode == EXIT_INTERNAL_ERROR
@@ -337,7 +339,7 @@ def test_missing_policy_file_exits_2(tmp_path: Path) -> None:
     root = copied_repo_data(tmp_path)
     (root / "config" / "policy.toml").unlink()
 
-    completed = run_cli("review", cwd=root)
+    completed = run_cli("review", "--model", "none", cwd=root)
 
     assert completed.returncode == EXIT_SETUP_ERROR
     assert three_lines(completed.stderr) == ERROR_PREFIXES
@@ -369,7 +371,7 @@ def test_table_shows_invalid_rows_empty_routes_and_data_issues(tmp_path: Path) -
         encoding="utf-8",
     )
 
-    lines = run_cli("review", "--format", "table", cwd=root).stdout.splitlines()
+    lines = run_cli("review", "--model", "none", "--format", "table", cwd=root).stdout.splitlines()
 
     assert lines == [
         "PNR     STATUS        OFFER    SAVING      REASON",
@@ -403,7 +405,7 @@ def test_doctor_passes_on_synced_checkout() -> None:
 
     assert completed.returncode == 0
     lines = completed.stdout.splitlines()
-    assert any(line.startswith("[ok] ") for line in lines)
+    assert "[ok] the sample recording recordings/review-run.json matches the data" in lines
     assert not any(line.startswith("[FAIL]") for line in lines)
 
 
@@ -442,7 +444,7 @@ def test_start_script_asks_before_sync() -> None:
 
 
 def test_data_scenarios_prints_six_results() -> None:
-    completed = run_cli("review", "--data", "scenarios")
+    completed = run_cli("review", "--model", "none", "--data", "scenarios")
 
     assert completed.returncode == 0
     assert [result["pnr"] for result in json.loads(completed.stdout)["results"]] == [
@@ -456,15 +458,15 @@ def test_data_scenarios_prints_six_results() -> None:
 
 
 def test_data_default_is_sample() -> None:
-    default = run_cli("review")
-    sample = run_cli("review", "--data", "sample")
+    default = run_cli("review", "--model", "none")
+    sample = run_cli("review", "--model", "none", "--data", "sample")
 
     assert default.returncode == 0
     assert default.stdout == sample.stdout
 
 
 def test_unknown_data_set_exits_2_three_lines() -> None:
-    completed = run_cli("review", "--data", "nope")
+    completed = run_cli("review", "--model", "none", "--data", "nope")
 
     assert completed.returncode == EXIT_SETUP_ERROR
     assert completed.stderr.splitlines() == [
@@ -637,6 +639,7 @@ def test_key_value_never_appears_in_output_or_files(
     monkeypatch.setenv(KEY_VARIABLE, FAKE_KEY)
     monkeypatch.setenv(MODEL_VARIABLE, "gpt-test")
     monkeypatch.chdir(copied_repo_data(tmp_path))
+    shutil.copytree(REPO_ROOT / "recordings", tmp_path / "recordings")
     hide_live_extra(monkeypatch)
 
     codes = [

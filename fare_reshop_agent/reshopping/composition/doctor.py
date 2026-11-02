@@ -3,6 +3,7 @@ import os
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from typing import assert_never
 
 from fare_reshop_agent.reshopping.composition.live_model import (
     KEY_VARIABLE,
@@ -12,8 +13,26 @@ from fare_reshop_agent.reshopping.composition.live_model import (
     is_set,
     setting_fix,
 )
-from fare_reshop_agent.reshopping.composition.review import REVIEW_FILES, inspect_file_fix
+from fare_reshop_agent.reshopping.composition.recording import (
+    TWO_PLACES_FIX,
+    InputNotDigestible,
+    InputUnreadable,
+    RecordingCheck,
+    RecordingDiffers,
+    RecordingMatches,
+    RecordingUnreadable,
+    check_recording,
+    re_record_command,
+    recording_path,
+)
+from fare_reshop_agent.reshopping.composition.review import (
+    REVIEW_FILES,
+    DataSet,
+    data_set_folder,
+    inspect_file_fix,
+)
 from fare_reshop_agent.reshopping.infrastructure.file_problem import FileReadError, read_text
+from fare_reshop_agent.reshopping.infrastructure.json_fixtures.source import JsonFixtureSource
 
 REQUIRED_MODULES = ("fare_reshop_agent", "pydantic")
 SYNC_FIX = "uv sync"
@@ -49,7 +68,39 @@ def doctor_checks(environ: Mapping[str, str]) -> tuple[CheckResult, ...]:
     required = tuple(_module_check(name) for name in REQUIRED_MODULES) + tuple(
         _file_check(path) for path in REVIEW_FILES
     )
-    return required + _live_checks(environ)
+    recordings = tuple(_recording_check(data_set) for data_set in DataSet)
+    return (*required, *recordings, *_live_checks(environ))
+
+
+def recording_result(data_set: DataSet, check: RecordingCheck) -> CheckResult:
+    name = f"the {data_set.value} recording {check.path} matches the data"
+    match check:
+        case RecordingMatches():
+            return Passed(check=name)
+        case RecordingDiffers():
+            changed = ", ".join(check.changed)
+            return Failed(
+                check=name,
+                fact=f"{changed} changed since it was recorded",
+                fix=re_record_command(data_set),
+            )
+        case RecordingUnreadable():
+            return Failed(check=name, fact=check.fact, fix=re_record_command(data_set))
+        case InputNotDigestible():
+            return Failed(check=name, fact=check.fact, fix=TWO_PLACES_FIX)
+        case InputUnreadable():
+            return Failed(
+                check=name, fact=f"{check.file}: {check.fact}", fix=inspect_file_fix(check.file)
+            )
+        case _:
+            assert_never(check)
+
+
+def _recording_check(data_set: DataSet) -> CheckResult:
+    path = recording_path(data_set)
+    return recording_result(
+        data_set, check_recording(JsonFixtureSource(data_set_folder(data_set)), path)
+    )
 
 
 def _live_checks(environ: Mapping[str, str]) -> tuple[CheckResult, ...]:

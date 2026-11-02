@@ -114,6 +114,9 @@ def all_pass(evaluation: OfferEvaluation) -> bool:
 
 REPO_FIXTURES = Path(__file__).resolve().parent.parent / "fixtures"
 REPO_CONFIG = REPO_FIXTURES.parent / "config"
+PROMPT_FILE = (
+    REPO_FIXTURES.parent / "fare_reshop_agent" / "reshopping" / "orchestration" / "review_prompt.md"
+)
 
 
 class InMemorySource:

@@ -1,0 +1,383 @@
+{
+  "header": {
+    "fares_feed": "67f909cf1055acbb1ae020e383bb8834a0234fad68c55c4d5f686d6753978cdd",
+    "pnrs": "e3e7dcef8ef3b90000cf1a350ce2f57a15ba4e1b1c5635148bc132347673b12c",
+    "policy": "141ffd481ea887edf0a8d62f114b3d067c8b135e00a6094211b1ae3487e48dc3",
+    "prompt": "5d9c169bccc0112d535326245da80baec8bf925b4f0c8b95ec021bbadf1d7cb0",
+    "rates": "b5b93a0d8dce580e74486013c2149e430d6937aa11aff8501dd57a6bd6e13fc5",
+    "tools": "124f192652f266428916818067ef58a8af3cd9f611bb964dae2af2453b6076e0"
+  },
+  "model": "gpt-5.4-mini",
+  "schema_version": 1,
+  "turns": [
+    {
+      "booking": "CH8L5F",
+      "reply": {
+        "calls": [
+          {
+            "arguments": "{}",
+            "name": "get_booking"
+          }
+        ],
+        "kind": "tool_calls",
+        "text": null
+      },
+      "transcript_digest": "594409fc59862b2d128c3f9b80789f6cd3d650a207daef0dc22a0a759283940b",
+      "turn": 1,
+      "usage": {
+        "input_tokens": 516,
+        "output_tokens": 14
+      }
+    },
+    {
+      "booking": "CH8L5F",
+      "reply": {
+        "calls": [
+          {
+            "arguments": "{}",
+            "name": "search_offers"
+          }
+        ],
+        "kind": "tool_calls",
+        "text": null
+      },
+      "transcript_digest": "bb3d23ca5d83cc705b65d4fa65de910904406a5ef4457c34db1d7aa85078e8d9",
+      "turn": 2,
+      "usage": {
+        "input_tokens": 685,
+        "output_tokens": 15
+      }
+    },
+    {
+      "booking": "CH8L5F",
+      "reply": {
+        "calls": [
+          {
+            "arguments": "{\"offer_id\":\"OF-6401\"}",
+            "name": "check_offer"
+          }
+        ],
+        "kind": "tool_calls",
+        "text": null
+      },
+      "transcript_digest": "397cf4e8ee32afbde8beb10f92f8625bd2eca47df98869e35adabd4edc1816cf",
+      "turn": 3,
+      "usage": {
+        "input_tokens": 847,
+        "output_tokens": 22
+      }
+    },
+    {
+      "booking": "CH8L5F",
+      "reply": {
+        "kind": "final",
+        "text": "{\"decision\":\"rebook\",\"offer_id\":\"OF-6401\",\"reasoning\":\"This offer is eligible and saves $80 per passenger, which is above the $50 minimum. It keeps the same airline, flight, cabin, bags, stops, and change fee, so there is no trade-off versus the current booking.\",\"confidence\":0.99}"
+      },
+      "transcript_digest": "302900061e75c0628aa3b781d485c2013ea12622c3c0b7ef973d98eef82f34e2",
+      "turn": 4,
+      "usage": {
+        "input_tokens": 1123,
+        "output_tokens": 80
+      }
+    },
+    {
+      "booking": "FD2N8Z",
+      "reply": {
+        "calls": [
+          {
+            "arguments": "{}",
+            "name": "get_booking"
+          }
+        ],
+        "kind": "tool_calls",
+        "text": null
+      },
+      "transcript_digest": "a46c4b157bc95fc1cf8abab7526c9d548f29498055f3e0a6d08890e921d1686c",
+      "turn": 1,
+      "usage": {
+        "input_tokens": 516,
+        "output_tokens": 14
+      }
+    },
+    {
+      "booking": "FD2N8Z",
+      "reply": {
+        "calls": [
+          {
+            "arguments": "{}",
+            "name": "search_offers"
+          }
+        ],
+        "kind": "tool_calls",
+        "text": null
+      },
+      "transcript_digest": "088f09c243f371ece66225bdd6b98ebd7581b505bc8a521711d0b612fd3f8edc",
+      "turn": 2,
+      "usage": {
+        "input_tokens": 685,
+        "output_tokens": 15
+      }
+    },
+    {
+      "booking": "FD2N8Z",
+      "reply": {
+        "calls": [
+          {
+            "arguments": "{\"offer_id\":\"OF-6401\"}",
+            "name": "check_offer"
+          }
+        ],
+        "kind": "tool_calls",
+        "text": null
+      },
+      "transcript_digest": "0812bc6e001f7aaaf1e8cda7b69c0cf08e6a4dda327c47d8c03df847e1386b15",
+      "turn": 3,
+      "usage": {
+        "input_tokens": 847,
+        "output_tokens": 22
+      }
+    },
+    {
+      "booking": "FD2N8Z",
+      "reply": {
+        "kind": "final",
+        "text": "{\"decision\":\"rebook\",\"offer_id\":\"OF-6401\",\"reasoning\":\"This offer passes every rule and saves $80 total, which is above the $50 minimum. It keeps the same carrier, cabin, schedule, bags, stops, and change fee, so there is no downside versus the current booking.\",\"confidence\":0.99}"
+      },
+      "transcript_digest": "a9f4af7202ba5abe7678fad91573550d556cf5a03d5b2951f760a3496e911cde",
+      "turn": 4,
+      "usage": {
+        "input_tokens": 1123,
+        "output_tokens": 79
+      }
+    },
+    {
+      "booking": "MK3V7P",
+      "reply": {
+        "calls": [
+          {
+            "arguments": "{}",
+            "name": "get_booking"
+          }
+        ],
+        "kind": "tool_calls",
+        "text": null
+      },
+      "transcript_digest": "3de11d16b6015d61959f5c340070500e7a601ee498e44115b2e6e421dcfa061e",
+      "turn": 1,
+      "usage": {
+        "input_tokens": 516,
+        "output_tokens": 14
+      }
+    },
+    {
+      "booking": "MK3V7P",
+      "reply": {
+        "calls": [
+          {
+            "arguments": "{}",
+            "name": "search_offers"
+          }
+        ],
+        "kind": "tool_calls",
+        "text": null
+      },
+      "transcript_digest": "f58f1a8ee54d47ef630c780078b3243cf4a5053f2a7e76910dab6516e4d9b58d",
+      "turn": 2,
+      "usage": {
+        "input_tokens": 682,
+        "output_tokens": 15
+      }
+    },
+    {
+      "booking": "MK3V7P",
+      "reply": {
+        "calls": [
+          {
+            "arguments": "{\"offer_id\":\"OF-6101\"}",
+            "name": "check_offer"
+          }
+        ],
+        "kind": "tool_calls",
+        "text": null
+      },
+      "transcript_digest": "83f140c1334f67ceeffb12688f6282ff7a8a629d2d21f6c42423fd4fbc77b9a8",
+      "turn": 3,
+      "usage": {
+        "input_tokens": 957,
+        "output_tokens": 22
+      }
+    },
+    {
+      "booking": "MK3V7P",
+      "reply": {
+        "kind": "final",
+        "text": "{\"decision\":\"rebook\",\"offer_id\":\"OF-6101\",\"reasoning\":\"This offer is eligible and saves $170, which is above the minimum. It does change the schedule by 40 minutes, but it keeps the same carrier, cabin, bags, stops, and change fee, so the trade-off is small.\",\"confidence\":0.98}"
+      },
+      "transcript_digest": "ae20b732b35b56d178a7862a98849c26fa9bfa0b9f6074c19892e0231d4f4901",
+      "turn": 4,
+      "usage": {
+        "input_tokens": 1236,
+        "output_tokens": 81
+      }
+    },
+    {
+      "booking": "RD9Q2X",
+      "reply": {
+        "calls": [
+          {
+            "arguments": "{}",
+            "name": "get_booking"
+          }
+        ],
+        "kind": "tool_calls",
+        "text": null
+      },
+      "transcript_digest": "2b15219eff59e0414b0fd50aeea474b7311585b3965d7ead2e350390ca886755",
+      "turn": 1,
+      "usage": {
+        "input_tokens": 516,
+        "output_tokens": 14
+      }
+    },
+    {
+      "booking": "RD9Q2X",
+      "reply": {
+        "calls": [
+          {
+            "arguments": "{}",
+            "name": "search_offers"
+          }
+        ],
+        "kind": "tool_calls",
+        "text": null
+      },
+      "transcript_digest": "3f9acd1aae1ae10dc67728cf1d9e5d97dd1dc6999fd7afb1cfa96939c6c516d2",
+      "turn": 2,
+      "usage": {
+        "input_tokens": 684,
+        "output_tokens": 15
+      }
+    },
+    {
+      "booking": "RD9Q2X",
+      "reply": {
+        "calls": [
+          {
+            "arguments": "{\"offer_id\":\"OF-6201\"}",
+            "name": "check_offer"
+          }
+        ],
+        "kind": "tool_calls",
+        "text": null
+      },
+      "transcript_digest": "b865b3df490a46602e8458e4d19bdd863c5f1f86ec085d923948c31e46226d7d",
+      "turn": 3,
+      "usage": {
+        "input_tokens": 845,
+        "output_tokens": 22
+      }
+    },
+    {
+      "booking": "RD9Q2X",
+      "reply": {
+        "kind": "final",
+        "text": "{\"decision\":\"rebook\",\"offer_id\":\"OF-6201\",\"reasoning\":\"This offer is eligible and saves $75, which is above the $50 minimum. It keeps the same cabin, bags, stops, and change fee, but it does change carrier from DL to WN.\",\"confidence\":0.98}"
+      },
+      "transcript_digest": "b79b4281f07b082ebbb6e75e38a64b4c5cc5f9f22107a07186f67d3638d1bb0f",
+      "turn": 4,
+      "usage": {
+        "input_tokens": 1124,
+        "output_tokens": 74
+      }
+    },
+    {
+      "booking": "WJ6T4N",
+      "reply": {
+        "calls": [
+          {
+            "arguments": "{}",
+            "name": "get_booking"
+          }
+        ],
+        "kind": "tool_calls",
+        "text": null
+      },
+      "transcript_digest": "a5516b39c18d3754b6bad42e3a8d41978f085c9fcfedb4cfb2bcdf7db502cf90",
+      "turn": 1,
+      "usage": {
+        "input_tokens": 517,
+        "output_tokens": 14
+      }
+    },
+    {
+      "booking": "WJ6T4N",
+      "reply": {
+        "calls": [
+          {
+            "arguments": "{}",
+            "name": "search_offers"
+          }
+        ],
+        "kind": "tool_calls",
+        "text": null
+      },
+      "transcript_digest": "b39e53156eeb9ba58d38068a2b1e4817a4d7f5e0e00f82734693177213472a09",
+      "turn": 2,
+      "usage": {
+        "input_tokens": 685,
+        "output_tokens": 15
+      }
+    },
+    {
+      "booking": "WJ6T4N",
+      "reply": {
+        "calls": [
+          {
+            "arguments": "{\"offer_id\":\"OF-6301\"}",
+            "name": "check_offer"
+          }
+        ],
+        "kind": "tool_calls",
+        "text": null
+      },
+      "transcript_digest": "18061a4dae770bb3fa4b74f7b5c93276ef709d5825ad9c11cf13d99236402437",
+      "turn": 3,
+      "usage": {
+        "input_tokens": 962,
+        "output_tokens": 22
+      }
+    },
+    {
+      "booking": "WJ6T4N",
+      "reply": {
+        "calls": [
+          {
+            "arguments": "{\"offer_id\":\"OF-6302\"}",
+            "name": "check_offer"
+          }
+        ],
+        "kind": "tool_calls",
+        "text": null
+      },
+      "transcript_digest": "5915d5dfaefce48806f640d8380e007c12c0b84a435a4926bf3e2b5b822adc0f",
+      "turn": 4,
+      "usage": {
+        "input_tokens": 1239,
+        "output_tokens": 22
+      }
+    },
+    {
+      "booking": "WJ6T4N",
+      "reply": {
+        "kind": "final",
+        "text": "{\"decision\":\"rebook\",\"offer_id\":\"OF-6302\",\"reasoning\":\"Offer OF-6302 passes every rule and saves $60, which is above the minimum saving. It also keeps the booking refundable, so it is the safer choice versus the nonrefundable cheaper fare.\",\"confidence\":0.98}"
+      },
+      "transcript_digest": "219e3bbb908c4427d853479beb3555ec897415558faf649470162c4022051785",
+      "turn": 5,
+      "usage": {
+        "input_tokens": 1515,
+        "output_tokens": 73
+      }
+    }
+  ]
+}

@@ -1,18 +1,32 @@
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import assert_never
 
+from fare_reshop_agent.reshopping.domain.exchange_rate import ExchangeRate
+from fare_reshop_agent.reshopping.domain.port.reshop_source import ReshopSnapshot
+from fare_reshop_agent.reshopping.domain.terms import ReviewPolicy
 from fare_reshop_agent.reshopping.domain.trip import BookingRef
 from fare_reshop_agent.reshopping.orchestration.agent_model import (
     AgentModel,
     FinalText,
     ModelReply,
+    Prompt,
     ProviderErrorCode,
     ProviderFailed,
     Refusal,
     ToolCalls,
     Transcript,
 )
-from fare_reshop_agent.reshopping.orchestration.digests import transcript_digest
+from fare_reshop_agent.reshopping.orchestration.booking_tools import tool_specs
+from fare_reshop_agent.reshopping.orchestration.digests import (
+    digest,
+    fares_feed_projection,
+    pnrs_projection,
+    policy_projection,
+    rates_projection,
+    tools_projection,
+    transcript_digest,
+)
 
 type RecordedReply = ToolCalls | FinalText | Refusal
 
@@ -91,3 +105,16 @@ class RecordingModel:
         return RecordingCompleted(
             recorded=RecordedTurns(header=self._header, model=self.model_name, turns=tuple(turns))
         )
+
+
+def compute_header(
+    snapshot: ReshopSnapshot, rates: Sequence[ExchangeRate], policy: ReviewPolicy, prompt: Prompt
+) -> RecordingHeader:
+    return RecordingHeader(
+        pnrs=digest(pnrs_projection(snapshot)),
+        fares_feed=digest(fares_feed_projection(snapshot)),
+        policy=digest(policy_projection(policy)),
+        rates=digest(rates_projection(rates)),
+        prompt=prompt.version,
+        tools=digest(tools_projection(tool_specs())),
+    )

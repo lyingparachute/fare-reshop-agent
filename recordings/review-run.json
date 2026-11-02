@@ -1,0 +1,154 @@
+{
+  "header": {
+    "fares_feed": "7e1fd78253fd31d21d86d7eb5d23d0754be4c3316d33cd113a317c2531befc5e",
+    "pnrs": "e3d895b25e450f2318197f6e4e48962863f760965f978c879f99264ef227db56",
+    "policy": "141ffd481ea887edf0a8d62f114b3d067c8b135e00a6094211b1ae3487e48dc3",
+    "prompt": "5d9c169bccc0112d535326245da80baec8bf925b4f0c8b95ec021bbadf1d7cb0",
+    "rates": "b5b93a0d8dce580e74486013c2149e430d6937aa11aff8501dd57a6bd6e13fc5",
+    "tools": "124f192652f266428916818067ef58a8af3cd9f611bb964dae2af2453b6076e0"
+  },
+  "model": "gpt-5.4-mini",
+  "schema_version": 1,
+  "turns": [
+    {
+      "booking": "QX7T2A",
+      "reply": {
+        "calls": [
+          {
+            "arguments": "{}",
+            "name": "get_booking"
+          }
+        ],
+        "kind": "tool_calls",
+        "text": null
+      },
+      "transcript_digest": "75e45380e202d06c0a2ccd6ec402ef47efe1814781dc3d048efc30d1fce61ad1",
+      "turn": 1,
+      "usage": {
+        "input_tokens": 517,
+        "output_tokens": 14
+      }
+    },
+    {
+      "booking": "QX7T2A",
+      "reply": {
+        "calls": [
+          {
+            "arguments": "{}",
+            "name": "search_offers"
+          }
+        ],
+        "kind": "tool_calls",
+        "text": null
+      },
+      "transcript_digest": "532bd9ba8c3eb5ae9267b90070409d107dabe2319feb89780e140993b99d3b17",
+      "turn": 2,
+      "usage": {
+        "input_tokens": 686,
+        "output_tokens": 15
+      }
+    },
+    {
+      "booking": "QX7T2A",
+      "reply": {
+        "calls": [
+          {
+            "arguments": "{\"offer_id\":\"OF-1001\"}",
+            "name": "check_offer"
+          }
+        ],
+        "kind": "tool_calls",
+        "text": null
+      },
+      "transcript_digest": "8554d9163a17a2650fda25ff7d2610877fcb59316d5788e64a9ba03f1528f092",
+      "turn": 3,
+      "usage": {
+        "input_tokens": 847,
+        "output_tokens": 22
+      }
+    },
+    {
+      "booking": "QX7T2A",
+      "reply": {
+        "kind": "final",
+        "text": "{\"decision\":\"rebook\",\"offer_id\":\"OF-1001\",\"reasoning\":\"This offer passes every rule and saves $80, which is above the $50 minimum. It keeps the same airline, flight, cabin, bags, stops, and change fee, so there is no trade-off versus the current booking.\",\"confidence\":0.99}"
+      },
+      "transcript_digest": "a5673a34e114e38bbdc257fabcfb0033d1c1651c8b0ac0be396874f82a07c108",
+      "turn": 4,
+      "usage": {
+        "input_tokens": 1123,
+        "output_tokens": 79
+      }
+    },
+    {
+      "booking": "RT5K8B",
+      "reply": {
+        "calls": [
+          {
+            "arguments": "{}",
+            "name": "get_booking"
+          }
+        ],
+        "kind": "tool_calls",
+        "text": null
+      },
+      "transcript_digest": "8a1f1c9a20ae994c63f4868cf73a19be243a332b611021403bd93391932deea1",
+      "turn": 1,
+      "usage": {
+        "input_tokens": 516,
+        "output_tokens": 14
+      }
+    },
+    {
+      "booking": "RT5K8B",
+      "reply": {
+        "calls": [
+          {
+            "arguments": "{}",
+            "name": "search_offers"
+          }
+        ],
+        "kind": "tool_calls",
+        "text": null
+      },
+      "transcript_digest": "6e912d660c377254fa645404d53b2f972cfcde05315a3f316055541fde6d5e3f",
+      "turn": 2,
+      "usage": {
+        "input_tokens": 684,
+        "output_tokens": 15
+      }
+    },
+    {
+      "booking": "RT5K8B",
+      "reply": {
+        "calls": [
+          {
+            "arguments": "{\"offer_id\":\"OF-3001\"}",
+            "name": "check_offer"
+          }
+        ],
+        "kind": "tool_calls",
+        "text": null
+      },
+      "transcript_digest": "aae5aaa6f5528dde9265a3a2fb41a252ad293983aed3b3c3be7a508e11447c1a",
+      "turn": 3,
+      "usage": {
+        "input_tokens": 844,
+        "output_tokens": 22
+      }
+    },
+    {
+      "booking": "RT5K8B",
+      "reply": {
+        "kind": "final",
+        "text": "{\"decision\":\"rebook\",\"offer_id\":\"OF-3001\",\"reasoning\":\"This offer passes every rule and saves 363.21 EUR, which is well above the minimum saving. It keeps the same Business cabin, nonstop routing, refundable status, and baggage allowance, so there is no trade-off to the traveler.\",\"confidence\":0.99}"
+      },
+      "transcript_digest": "3f6a790952a45cdeb739bc55a8c056a30c739d6c095253f4ba6fe96e968ff2b9",
+      "turn": 4,
+      "usage": {
+        "input_tokens": 1186,
+        "output_tokens": 80
+      }
+    }
+  ]
+}

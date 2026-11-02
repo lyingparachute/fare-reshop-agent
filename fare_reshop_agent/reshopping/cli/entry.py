@@ -93,7 +93,7 @@ def build_parser() -> argparse.ArgumentParser:
     review.add_argument(
         "--model",
         choices=[mode.value for mode in ReviewMode],
-        default=ReviewMode.NONE.value,
+        default=ReviewMode.RECORDED.value,
         help="who decides among eligible offers (default: %(default)s)",
     )
     review.add_argument(

@@ -1,6 +1,6 @@
 import dataclasses
 import os
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import assert_never
@@ -15,7 +15,6 @@ from fare_reshop_agent.reshopping.composition.review import (
     setup_error_for,
 )
 from fare_reshop_agent.reshopping.composition.setup_error import SetupError
-from fare_reshop_agent.reshopping.domain.exchange_rate import ExchangeRate
 from fare_reshop_agent.reshopping.domain.port.reshop_source import ReshopSnapshot, ReshopSource
 from fare_reshop_agent.reshopping.domain.terms import ReviewPolicy
 from fare_reshop_agent.reshopping.infrastructure.file_problem import FileProblem, FileReadError
@@ -28,28 +27,25 @@ from fare_reshop_agent.reshopping.infrastructure.json_files.recording_file impor
 from fare_reshop_agent.reshopping.infrastructure.json_fixtures.source import JsonFixtureSource
 from fare_reshop_agent.reshopping.infrastructure.openai.provider_errors import PROVIDER_REFUSALS
 from fare_reshop_agent.reshopping.infrastructure.toml.readers import (
+    TomlExchangeRates,
     read_exchange_rates,
     read_policy,
 )
 from fare_reshop_agent.reshopping.orchestration.agent_model import AgentModel, Prompt
 from fare_reshop_agent.reshopping.orchestration.booking_loop import Trace
-from fare_reshop_agent.reshopping.orchestration.booking_tools import tool_specs
 from fare_reshop_agent.reshopping.orchestration.digests import (
-    digest,
-    fares_feed_projection,
-    pnrs_projection,
-    policy_projection,
-    rates_projection,
-    tools_projection,
+    MoneyTooPrecise,
 )
 from fare_reshop_agent.reshopping.orchestration.recording import (
     RecordingCompleted,
     RecordingHeader,
     RecordingModel,
     RecordingStopped,
+    compute_header,
 )
 from fare_reshop_agent.reshopping.orchestration.replay import (
     HeaderChanged,
+    HeaderInput,
     RecordedModel,
     RecordedTrace,
     StaleRecording,
@@ -92,32 +88,103 @@ def re_record_command(data_set: DataSet) -> str:
     )
 
 
-def compute_header(
-    snapshot: ReshopSnapshot, rates: Sequence[ExchangeRate], policy: ReviewPolicy, prompt: Prompt
-) -> RecordingHeader:
-    return RecordingHeader(
-        pnrs=digest(pnrs_projection(snapshot)),
-        fares_feed=digest(fares_feed_projection(snapshot)),
-        policy=digest(policy_projection(policy)),
-        rates=digest(rates_projection(rates)),
-        prompt=prompt.version,
-        tools=digest(tools_projection(tool_specs())),
+@dataclass(frozen=True, slots=True, kw_only=True)
+class RecordingMatches:
+    path: Path
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class RecordingDiffers:
+    path: Path
+    changed: tuple[HeaderInput, ...]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class RecordingUnreadable:
+    path: Path
+    fact: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class InputUnreadable:
+    path: Path
+    file: Path
+    fact: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class InputNotDigestible:
+    path: Path
+    fact: str
+
+
+type RecordingCheck = (
+    RecordingMatches | RecordingDiffers | RecordingUnreadable | InputUnreadable | InputNotDigestible
+)
+
+TWO_PLACES_FIX = "write every amount in the fixtures and config with at most two decimal places"
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class _ReviewInputs:
+    snapshot: ReshopSnapshot
+    rates: TomlExchangeRates
+    policy: ReviewPolicy
+    prompt: Prompt
+    header: RecordingHeader
+
+
+def _read_inputs(source: ReshopSource) -> _ReviewInputs:
+    rates = read_exchange_rates(EXCHANGE_RATES_FILE)
+    policy = read_policy(POLICY_FILE)
+    snapshot = source.read_snapshot()
+    prompt = review_prompt()
+    return _ReviewInputs(
+        rates=rates,
+        policy=policy,
+        snapshot=snapshot,
+        prompt=prompt,
+        header=compute_header(snapshot, rates.entries, policy, prompt),
     )
+
+
+def _read_inputs_or_setup_error(source: ReshopSource) -> _ReviewInputs:
+    try:
+        return _read_inputs(source)
+    except FileReadError as err:
+        raise setup_error_for(err) from err
+    except MoneyTooPrecise as err:
+        raise SetupError(
+            error="cannot digest the review inputs",
+            reason=str(err),
+            fix=TWO_PLACES_FIX,
+        ) from err
+
+
+def check_recording(source: ReshopSource, path: Path) -> RecordingCheck:
+    try:
+        recorded = read_recording(path)
+    except RecordingFileError as err:
+        return RecordingUnreadable(path=path, fact=err.fact)
+    try:
+        inputs = _read_inputs(source)
+    except FileReadError as err:
+        return InputUnreadable(path=path, file=err.path, fact=err.fact)
+    except MoneyTooPrecise as err:
+        return InputNotDigestible(path=path, fact=str(err))
+    changed = changed_inputs(inputs.header, recorded.header)
+    if changed:
+        return RecordingDiffers(path=path, changed=changed)
+    return RecordingMatches(path=path)
 
 
 def record_review(
     source: ReshopSource, path: Path, model: AgentModel
 ) -> RecordedRun | RecordingStopped:
-    try:
-        rates = read_exchange_rates(EXCHANGE_RATES_FILE)
-        policy = read_policy(POLICY_FILE)
-        snapshot = source.read_snapshot()
-    except FileReadError as err:
-        raise setup_error_for(err) from err
-    prompt = review_prompt()
-    wrapper = RecordingModel(model, compute_header(snapshot, rates.entries, policy, prompt))
-    agent = ReviewAgent(model=wrapper, prompt=prompt, mode=ReviewMode.OPENAI)
-    report = review_with_model(_SnapshotSource(snapshot), rates, policy, agent)
+    inputs = _read_inputs_or_setup_error(source)
+    wrapper = RecordingModel(model, inputs.header)
+    agent = ReviewAgent(model=wrapper, prompt=inputs.prompt, mode=ReviewMode.OPENAI)
+    report = review_with_model(_SnapshotSource(inputs.snapshot), inputs.rates, inputs.policy, agent)
     outcome = wrapper.outcome()
     match outcome:
         case RecordingStopped():
@@ -131,19 +198,14 @@ def record_review(
 
 def replay_review(source: ReshopSource, path: Path) -> ReviewReport:
     recorded = read_recording(path)
-    try:
-        rates = read_exchange_rates(EXCHANGE_RATES_FILE)
-        policy = read_policy(POLICY_FILE)
-        snapshot = source.read_snapshot()
-    except FileReadError as err:
-        raise setup_error_for(err) from err
-    prompt = review_prompt()
-    current = compute_header(snapshot, rates.entries, policy, prompt)
-    changed = changed_inputs(current, recorded.header)
+    inputs = _read_inputs_or_setup_error(source)
+    changed = changed_inputs(inputs.header, recorded.header)
     if changed:
         raise StaleRecording(tuple(HeaderChanged(input=header_input) for header_input in changed))
-    agent = ReviewAgent(model=RecordedModel(recorded), prompt=prompt, mode=ReviewMode.RECORDED)
-    report = review_with_model(_SnapshotSource(snapshot), rates, policy, agent)
+    agent = ReviewAgent(
+        model=RecordedModel(recorded), prompt=inputs.prompt, mode=ReviewMode.RECORDED
+    )
+    report = review_with_model(_SnapshotSource(inputs.snapshot), inputs.rates, inputs.policy, agent)
     turns_taken = {
         row.outcome.ref: row.trace.turns for row in report.results if isinstance(row.trace, Trace)
     }

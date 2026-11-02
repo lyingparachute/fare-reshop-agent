@@ -1,6 +1,6 @@
 # Design document and README
 
-Status: blocked - needs the owner's two recordings (Record and replay model runs) and the Q2 answer for the AI-usage section
+Status: ready
 
 This ExecPlan is a living document. Progress, Surprises & Discoveries, Decision Log and Outcomes & Retrospective are kept current as work proceeds. Repo plan rules: none. Starts after: Record and replay model runs.
 
@@ -345,6 +345,10 @@ Observation: an earlier draft of plan 02 changed `.env.example` to `gpt-5.4-mini
 Observation: the built output puts an `exchange_rates` list on each result (`fare_reshop_agent/reshopping/cli/json_output.py`). The docs do not list result fields, so the output contract cannot drift from it. The schema test is the reference.
 
 ## Decision Log
+
+- Decision: the plan is unblocked. Record and replay model runs landed on 2026-11-02 with both committed recordings (`recordings/review-run.json`, 8 calls, and `recordings/scenarios-run.json`, 21 calls, both on `gpt-5.4-mini`), and the owner answered Q2: use this session's work plus the history of plans and decisions, and the exported plan-feature report. The owner also chose to draft the sections that do not need the recordings in parallel before the recordings existed; every claim in those drafts is re-checked against the landed code.
+  Rationale: both blockers in the status line are gone.
+  Date/Author: 2026-11-02, implementer with the owner's answers.
 
 Decision: the docs carry only the decisions the index marks for this plan, plus D19's README change and its AGENTS.md check. Rationale: this plan's scope is the docs, and each other decision is owned by the plan that builds it. Date/Author: 2026-11-02, plan author.
 

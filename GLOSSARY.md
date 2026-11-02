@@ -2,6 +2,8 @@
 
 The terms the code, tests and docs use.
 
+## Bookings and rules
+
 ### Booking
 
 One ticketed trip, identified by its booking reference (the PNR code, for example `QX7T2A`). It has one flight segment, a number of passengers, and a ticket with the price paid, the cabin, the refund right, the change fee per passenger and the checked bags included.
@@ -42,6 +44,8 @@ A stored rate between two currencies, with the date of the rate, for example 1 E
 
 The decision for one booking: rebook, keep, or invalid data. A rebook names the chosen offer, its nominal saving, its approval flags, the reasoning and the rates used. A keep gives the reasoning, the minimum saving and the rates. Invalid data gives the reason the booking could not be reviewed. In a model mode, two more results exist: needs review and incomplete analysis. Each result also says what decided it: the rules, the model or the safety check.
 
+## Model review
+
 ### Needs review
 
 A model-mode result that a person must check before anything changes. The safety check gives it when the model's choice fails a rule, misses the minimum saving or names an unknown offer, or when the model says keep while an eligible offer exists. It shows the rules' view and the model's text side by side.
@@ -52,7 +56,7 @@ A model-mode result with no decision. The booking's model turns ended on the tur
 
 ### Trace
 
-The record of one booking's model turns in a model-mode result: the prompt version, the number of turns, the token usage, each tool call with its arguments and whether it ran, and the closed code of a provider error, if any.
+The record of one booking's model turns in a model-mode result: the prompt version, the number of turns, the token usage, each tool call with its arguments and whether it ran, and the closed code of a provider error, if any. A replayed result shows the recorded model name and its recorded token usage instead of live usage.
 
 ### Tool
 
@@ -69,3 +73,13 @@ One call to the model and its reply. A booking's turns count from 1. A reply hol
 ### Safety check
 
 The plain-code step after the model's final answer. For a rebook, it checks that the chosen offer is on the booking's route and date, then re-runs the rule checks and the nominal saving for that offer, and checks that the saving still meets the minimum saving. It ignores any amount the model writes. A failing choice, or a keep while an eligible offer exists, becomes a result that a person must review.
+
+## Record and replay
+
+### Recording
+
+The committed file that holds one real model run for one data set: a header with a digest of each input (bookings, offers, policy, rates, prompt, tool specs), the model name, and each turn's reply and token usage, keyed by booking and turn. The default run replays it.
+
+### Stale recording
+
+A recording that no longer matches the inputs or the questions that made it: a header digest differs, a turn's transcript differs, a needed turn is missing, or a recorded turn is never asked for. Replay refuses it with exit code 3 until the owner re-records.
