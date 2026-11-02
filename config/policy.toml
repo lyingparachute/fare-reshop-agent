@@ -1,0 +1,5 @@
+_comment = "Review policy. The minimum saving is converted to the booking's currency and rounded once."
+
+[minimum_saving]
+amount = "50.00"
+currency = "USD"

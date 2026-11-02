@@ -1,0 +1,7 @@
+_comment = "Fixed demo exchange rates. Each rate also answers the inverse direction. Rates are text so no binary float enters money math."
+
+[[rates]]
+base = "EUR"
+quote = "USD"
+rate = "1.1433"
+as_of = "2026-07-07"

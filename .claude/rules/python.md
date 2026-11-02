@@ -35,7 +35,7 @@ Python 3.12+, `uv`, `ruff`, `mypy --strict`, `pytest`. Linters already enforce s
 ## Money
 
 - Build `Decimal` from `str` or `int`, never from `float`. `Decimal(0.1)` is wrong.
-- Parse JSON with `Model.model_validate_json(text)`, or `json.loads(text, parse_float=Decimal)`. Plain `json.loads` turns prices into floats before you see them.
+- Parse JSON with `json.loads(text, parse_float=Decimal)`, then validate with `Model.model_validate`. Plain `json.loads` turns prices into floats before you see them, and `Model.model_validate_json` drops digits of a long `Decimal` (pydantic 2.14).
 - Round once, at the step `DESIGN.md` names, with `quantize(Decimal("0.01"), rounding=ROUND_HALF_EVEN)`. Never call `round()` on money.
 - An amount always travels with its currency. Adding or comparing two currencies raises.
 - `tests/conftest.py` must trap `decimal.FloatOperation`, so any float that leaks into money math fails the tests.

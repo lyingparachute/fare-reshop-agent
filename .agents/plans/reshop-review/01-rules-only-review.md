@@ -7,11 +7,11 @@ This ExecPlan is a living document. Progress, Surprises & Discoveries, Decision 
 ## Progress
 
 - [x] (2026-11-02) Milestone 1: project setup and local checks (uv project, pyproject with the `fare-reshop` script, ruff, mypy strict, pytest with the float trap, the `scripts/check.sh` check script). DoD CLI entry: `1`, `0`. Check script: `4`, `1`. Checks green: `0` (`1 passed`). Critic: four findings fixed (session-wide trap via `pytest_configure`, no blanket ruff ignores, no empty subcommand group, no one-caller `run`).
-- [ ] Milestone 2: domain value objects, the result union (`Rebook`, `Keep`, `Invalid`) and review rules, tested in `tests/test_review_rules.py`.
-- [ ] Milestone 3: prototyping exact money text through pydantic, with a promote or discard decision recorded in this plan.
-- [ ] Milestone 4: the fixture JSON adapter for `ReshopSource`, with the rejection and data-issue rules.
-- [ ] Milestone 5: the TOML rate adapter for `ExchangeRates`, the TOML policy reader, the reader error types, and the two config files.
-- [ ] Milestone 6: review orchestration in `none` mode, with the sample-data oracle test.
+- [x] (2026-11-02) Milestone 2: domain value objects, the result union (`Rebook`, `Keep`, `Invalid`) and review rules, tested in `tests/test_review_rules.py`. DoD Domain rule names: `28`. Checks green (`50 passed`). Two critic rounds; fixes listed in the Decision Log.
+- [x] (2026-11-02) Milestone 3: prototyping exact money text through pydantic, with a promote or discard decision recorded in this plan. Result: discard path one, use path two.
+- [x] (2026-11-02) Milestone 4: the fixture JSON adapter for `ReshopSource`, with the rejection and data-issue rules. 11 of the 14 "Fixture and rate names" present (the other 3 are milestone 5). Checks green (`72 passed`). Two critic rounds.
+- [x] (2026-11-02) Milestone 5: the TOML rate adapter for `ExchangeRates`, the TOML policy reader, the reader error types, and the two config files. DoD Fixture and rate names: `14`. Checks green (`85 passed`). Two critic rounds (round 2: APPROVE, two small fixes applied).
+- [x] (2026-11-02) Milestone 6: review orchestration in `none` mode, with the sample-data oracle test. DoD Orchestration names: `14`. Checks green (`99 passed`). Critic: APPROVE, three small fixes applied.
 - [ ] Milestone 7: composition (the `none` graph, `SetupError`, the color setting) and the `review` command with JSON output.
 - [ ] Milestone 8: table output with the REASON column, the three-line error format, exit codes and `--debug`.
 - [ ] Milestone 9: `fare-reshop doctor`, `start.sh` and the first-run tests in `tests/test_cli.py`.
@@ -401,6 +401,9 @@ Proof: the DoD items "Scenario rule names", "Scenario CLI names" and "Scenario t
 - Observation: the RT5K8B saving in EUR and the EUR minimum, in two test names and one DoD item, were not recomputed when the rate changed to 1.1433. The names and the DoD item now carry the values that the Decimal arithmetic gives at that rate.
   Evidence: `test_rt5k8b_rebooks_of_3001_for_363_21_eur`, `test_minimum_saving_in_eur_is_43_73` and the DoD item "Table rebooks RT5K8B". At 1.1433 the offer is 1,836.79 EUR, the saving is 363.21 EUR, and the minimum is 43.73 EUR (ROUND_HALF_EVEN, 2 places).
 
+- Prototype result: discard. pydantic 2.14.2 (pydantic-core 2.50.2) reads a JSON number into a `Decimal` field through a binary float, so `model_validate_json` printed `1234567.123456789` for `1234567.123456789012345`. Path two, `json.loads(text, parse_float=Decimal)` followed by `model_validate`, printed `1234567.123456789012345` with no `FloatOperation`. The fixture adapter uses path two.
+  Evidence: scratch script run with `uv run python -I`; output `path one 1234567.123456789 FAIL`, `path two 1234567.123456789012345 PASS`. A `Field(alias="_comment")` on a model with `extra="forbid"` accepted the top-level `_comment` key. Docs read: the pydantic-core JSON input code turns a JSON float into text through a 64-bit float before it builds the `Decimal`, which explains the lost digits. `.claude/rules/python.md` now names path two only.
+
 ## Decision Log
 
 - Decision: money accepts a `Decimal`, text or an integer, refuses a float or a bool, and raises on adding or comparing two currencies, equality included (L2, milestone 2). A round-2 critic proposed that equality return False; dismissed, because `.claude/rules/python.md` (the owner's rule) says comparing two currencies raises.
@@ -573,6 +576,66 @@ Proof: the DoD items "Scenario rule names", "Scenario CLI names" and "Scenario t
 - Decision: milestone 11 was folded in after critic round 2 and had no critic round of its own. The owner dismissed the missing round and chose to implement. Six spot-check defects were fixed before work started: the milestone 11 heading level, the `--data` fix line versus L7, the rate date in the Decision Log, the milestone count, "the other five" in milestone 6, and a false claim about `AGENTS.md` in milestone 10.
   Rationale: owner answer, 2026-11-02, when asked at the start of implementation: "Fix + implement all".
   Date/Author: 2026-11-02, implementer, owner answer.
+
+- Decision: money is built with the factory `Money.of(amount, currency)`, which accepts a `Decimal`, plain decimal text or an integer, and refuses a float, a bool and text such as `1_000` or `1e3`. The dataclass constructor takes a `Decimal` only.
+  Rationale: a field typed `Decimal` cannot accept text under mypy strict without widening the field type. Critic round 1 asked for one constructor path; dismissed for that reason.
+  Date/Author: 2026-11-02, implementer.
+
+- Decision: the domain signatures differ from milestone 2's text. `booking_terms(booking, policy, rates)` returns `BookingTerms` (the booking, its change fee converted to the booking currency, and the converted minimum) or `NoRate`. `evaluate_offer(terms, offer, rates)` and `decide(terms, evaluations)` take those terms. `convert_minimum` returns a `Conversion` (the rounded money and the rate it used) or `NoRate`. Orchestration maps a `NoRate` from `booking_terms` to `INVALID_DATA` with `NoRate.reason`.
+  Rationale: critic round 1: the booking fee was converted once per offer and its rate reached `decide` from a second source. One terms value per booking holds each conversion once, and its rates feed the result-level `exchange_rates` list of L1.
+  Date/Author: 2026-11-02, implementer.
+
+- Decision: the reasoning templates of L4 live in the domain `decide`, not in orchestration.
+  Rationale: which KEEP case applies is decision logic, and the text names the same offer `decide` ranks.
+  Date/Author: 2026-11-02, implementer.
+
+- Decision: `OfferEvaluation.nominal_saving` is `Money | NoRate`, never null. The serializer writes null for `NoRate`.
+  Rationale: typed absence, as the repo rules require.
+  Date/Author: 2026-11-02, implementer.
+
+- Decision: `Offer` stores origin and destination, and its route date is derived from its departure time. The fixture adapter rejects an offer whose `route.departureDate` differs from the date of its `departure`.
+  Rationale: critic round 1: two stored facts that could disagree.
+  Date/Author: 2026-11-02, implementer.
+
+- Decision: `ReviewPolicy` does not force USD. The minimum's currency is read from `config/policy.toml`.
+  Rationale: D5's 50 USD is the value of that file. A domain check for one currency would duplicate the file. Critic round 2 asked to record this.
+  Date/Author: 2026-11-02, implementer.
+
+- Decision: named tests in the DoD greps are plain functions, not parametrized, because the DoD pattern `::name$` does not match parametrized ids. Extra tests outside the DoD lists may be parametrized.
+  Rationale: the DoD counts must stay binary.
+  Date/Author: 2026-11-02, implementer.
+
+- Decision: ruff selects `TRY` with one ignore, `TRY003`, with its reason in `pyproject.toml`. Critic round 2 asked for per-line suppressions instead; dismissed.
+  Rationale: the Python rules ask value objects to raise on bad input with a reason that becomes a data issue. 22 same-line suppressions would be noise for a rule the project does not want.
+  Date/Author: 2026-11-02, implementer.
+
+- Decision: `test_minimum_is_checked_after_rounding` checks the rounded saving (50.00) and the eligibility, not the unrounded 49.996.
+  Rationale: the unrounded saving is not public; rounding happens inside the evaluation.
+  Date/Author: 2026-11-02, implementer.
+
+- Decision: milestone 3 prototype: discard pydantic's own JSON parsing; the fixture adapter parses with `json.loads(text, parse_float=Decimal)` and validates the result with `model_validate`.
+  Rationale: path one lost digits (see Surprises & Discoveries).
+  Date/Author: 2026-11-02, implementer.
+
+- Decision: the fixture adapter is `JsonFixtureSource(folder)`, reading `pnrs.json` and `fares_feed.json` from the folder it is given (L12). Each record is validated on its own; an expected rejection is a returned value inside the adapter, not an exception. Times must have the exact shapes `YYYY-MM-DDTHH:MM:SS` (local), `YYYY-MM-DDTHH:MM:SSZ` (capture time) and `YYYY-MM-DD` (route date).
+  Rationale: L3 says a record must match the fixture shape exactly; critic rounds 1 and 2 showed that `fromisoformat` and plain `strptime` accept other shapes.
+  Date/Author: 2026-11-02, implementer.
+
+- Decision: `JsonFixtureError` and the later `TomlFileError` share a base, `FileReadError`, and one `read_text` helper in `infrastructure/file_problem.py`.
+  Rationale: both carry the same path, problem and fact (D12), and composition maps both the same way.
+  Date/Author: 2026-11-02, implementer.
+
+- Decision: the tests stay in the two modules of L9, even past 400 lines. Critic round 1 asked to split `tests/test_review_rules.py`; dismissed.
+  Rationale: L9 locks two test modules and the DoD "Test modules" item expects three files.
+  Date/Author: 2026-11-02, implementer.
+
+- Decision: the rate reader is `read_exchange_rates(path)`, which returns a `TomlExchangeRates` holding the parsed rates, and the policy reader is `read_policy(path)`. A pair listed twice in either direction, a negative minimum, a rate stored as a TOML number and an unknown key are all `MALFORMED`. File reading, model validation and exact time parsing are shared helpers in `infrastructure/file_problem.py`.
+  Rationale: critic round 1: one read-validate-map flow for both readers, and a negative minimum would let a loss pass the minimum check.
+  Date/Author: 2026-11-02, implementer.
+
+- Decision: `review_snapshot(source, rates, policy)` returns a `ReviewReport` (mode, capture time, data issues, results sorted by booking reference). `ReviewMode` holds only `none`; plans 02 and 03 add members.
+  Rationale: the report is the one value the CLI renders; the mode belongs to the run, not the domain.
+  Date/Author: 2026-11-02, implementer.
 
 ## Outcomes & Retrospective
 
