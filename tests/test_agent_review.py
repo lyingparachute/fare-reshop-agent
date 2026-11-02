@@ -2,18 +2,47 @@ import dataclasses
 import hashlib
 import json
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
 from decimal import Decimal
 from pathlib import Path
+from typing import Unpack
 
+import httpx2
 import pytest
+from openai import (
+    APIConnectionError,
+    APIError,
+    APIStatusError,
+    APITimeoutError,
+    AuthenticationError,
+    InternalServerError,
+    NotFoundError,
+    PermissionDeniedError,
+    RateLimitError,
+)
+from openai.types.responses import Response
 
 from fare_reshop_agent.reshopping.cli.json_output import render_json
 from fare_reshop_agent.reshopping.cli.table_output import render_table
 from fare_reshop_agent.reshopping.composition.color import ColorSetting
 from fare_reshop_agent.reshopping.domain.money import Money
 from fare_reshop_agent.reshopping.domain.port.reshop_source import ReshopSnapshot
-from fare_reshop_agent.reshopping.domain.terms import BookingTerms, booking_terms
-from fare_reshop_agent.reshopping.domain.trip import Cabin, Offer, OfferId
+from fare_reshop_agent.reshopping.domain.terms import BookingTerms, ReviewPolicy, booking_terms
+from fare_reshop_agent.reshopping.domain.trip import BookingRef, Cabin, Offer, OfferId
+from fare_reshop_agent.reshopping.infrastructure.json_fixtures.source import JsonFixtureSource
+from fare_reshop_agent.reshopping.infrastructure.openai.provider_errors import (
+    ProviderAuthenticationError,
+    ProviderModelNotFoundError,
+    ProviderPermissionError,
+)
+from fare_reshop_agent.reshopping.infrastructure.openai.request_builder import (
+    ModelSettings,
+    ResponseRequest,
+)
+from fare_reshop_agent.reshopping.infrastructure.openai.responses_model import (
+    OpenAIResponsesModel,
+)
+from fare_reshop_agent.reshopping.infrastructure.toml.readers import read_exchange_rates
 from fare_reshop_agent.reshopping.orchestration.agent_model import (
     NO_USAGE,
     FinalText,
@@ -23,9 +52,12 @@ from fare_reshop_agent.reshopping.orchestration.agent_model import (
     ProviderFailed,
     Refusal,
     ToolCallItem,
+    ToolCallRequest,
     ToolCalls,
     ToolResultItem,
+    ToolSpec,
     Transcript,
+    Usage,
     UserMessage,
 )
 from fare_reshop_agent.reshopping.orchestration.booking_loop import (
@@ -37,6 +69,7 @@ from fare_reshop_agent.reshopping.orchestration.booking_loop import (
 )
 from fare_reshop_agent.reshopping.orchestration.booking_tools import BookingTools
 from fare_reshop_agent.reshopping.orchestration.canonical_json import JsonValue, canonical_json
+from fare_reshop_agent.reshopping.orchestration.final_answer import final_answer_schema
 from fare_reshop_agent.reshopping.orchestration.review import (
     ReviewAgent,
     ReviewMode,
@@ -51,6 +84,9 @@ from sample_data import (
     OF_1001,
     POLICY,
     QX7T2A,
+    REPO_CONFIG,
+    REPO_FIXTURES,
+    USD,
     InMemorySource,
     sample,
     sample_booking,
@@ -669,3 +705,364 @@ def test_mixed_reply_on_the_last_turn_is_bad_final_answer() -> None:
     result, _ = incomplete(*replies, calls(call("get_booking"), text="Rebook."))
 
     assert result["incomplete_reason"] == "bad_final_answer"
+
+
+@dataclass(slots=True, kw_only=True)
+class StubResponsesClient:
+    outcome: Response | APIError
+    requests: list[ResponseRequest] = field(default_factory=list)
+
+    def create(self, **request: Unpack[ResponseRequest]) -> Response:
+        self.requests.append(request)
+        if isinstance(self.outcome, APIError):
+            raise self.outcome
+        return self.outcome
+
+
+STUB_SETTINGS = ModelSettings(model="gpt-test", max_output_tokens=2000)
+STUB_REQUEST = httpx2.Request("POST", "https://api.openai.com/v1/responses")
+STUB_TRANSCRIPT = Transcript(
+    booking_ref=BookingRef("ABC123"),
+    turn=2,
+    prompt=TEST_PROMPT,
+    tool_specs=(
+        ToolSpec(
+            name="check_offer",
+            description="Check one offer.",
+            parameters={
+                "type": "object",
+                "properties": {"offer_id": {"type": "string"}},
+                "required": ["offer_id"],
+                "additionalProperties": False,
+            },
+        ),
+    ),
+    items=(
+        UserMessage(text="Review booking ABC123."),
+        ToolCallItem(call_id="call_1_1", name="check_offer", arguments='{"offer_id":"OF1"}'),
+        ToolResultItem(call_id="call_1_1", result='{"ok":true}'),
+    ),
+)
+
+
+def stub_response(output: list[dict[str, object]]) -> Response:
+    return Response.model_validate(
+        {
+            "id": "resp_1",
+            "created_at": 1,
+            "model": "gpt-test",
+            "object": "response",
+            "output": output,
+            "parallel_tool_calls": False,
+            "tool_choice": "auto",
+            "tools": [],
+            "status": "completed",
+            "usage": {
+                "input_tokens": 120,
+                "input_tokens_details": {"cache_write_tokens": 0, "cached_tokens": 0},
+                "output_tokens": 30,
+                "output_tokens_details": {"reasoning_tokens": 0},
+                "total_tokens": 150,
+            },
+        }
+    )
+
+
+def stub_message(*content: dict[str, object]) -> dict[str, object]:
+    return {
+        "type": "message",
+        "id": "msg_1",
+        "role": "assistant",
+        "status": "completed",
+        "content": list(content),
+    }
+
+
+def stub_status_error(error_class: type[APIStatusError], status: int) -> APIStatusError:
+    return error_class(
+        "provider error",
+        response=httpx2.Response(status, request=STUB_REQUEST),
+        body=None,
+    )
+
+
+def openai_model(outcome: Response | APIError) -> tuple[OpenAIResponsesModel, StubResponsesClient]:
+    client = StubResponsesClient(outcome=outcome)
+    return OpenAIResponsesModel(client=client, settings=STUB_SETTINGS), client
+
+
+def test_openai_request_sets_store_off_and_no_reasoning() -> None:
+    model, client = openai_model(stub_response([stub_message()]))
+
+    model.next_step(STUB_TRANSCRIPT)
+
+    [request] = client.requests
+    assert request["store"] is False
+    assert request["reasoning"] == {"effort": "none"}
+    assert request["instructions"] == "Review the booking."
+    spec = STUB_TRANSCRIPT.tool_specs[0]
+    assert request["tools"] == [
+        {
+            "type": "function",
+            "name": spec.name,
+            "description": spec.description,
+            "parameters": spec.parameters,
+            "strict": True,
+        }
+    ]
+    assert request["text"] == {
+        "format": {
+            "type": "json_schema",
+            "name": "review_decision",
+            "schema": final_answer_schema(),
+            "strict": True,
+        }
+    }
+    assert request["input"] == [
+        {"type": "message", "role": "user", "content": "Review booking ABC123."},
+        {
+            "type": "function_call",
+            "call_id": "call_1_1",
+            "name": "check_offer",
+            "arguments": '{"offer_id":"OF1"}',
+        },
+        {"type": "function_call_output", "call_id": "call_1_1", "output": '{"ok":true}'},
+    ]
+
+
+def test_openai_request_sets_parallel_tool_calls_off() -> None:
+    model, client = openai_model(stub_response([stub_message()]))
+
+    model.next_step(STUB_TRANSCRIPT)
+
+    [request] = client.requests
+    assert request["parallel_tool_calls"] is False
+    assert request["max_output_tokens"] == STUB_SETTINGS.max_output_tokens
+    assert request["model"] == "gpt-test"
+
+
+def test_openai_errors_map_to_provider_failed() -> None:
+    cases: list[tuple[APIError, ProviderErrorCode]] = [
+        (APITimeoutError(STUB_REQUEST), ProviderErrorCode.TIMEOUT),
+        (APIConnectionError(request=STUB_REQUEST), ProviderErrorCode.CONNECTION),
+        (stub_status_error(RateLimitError, 429), ProviderErrorCode.RATE_LIMIT),
+        (stub_status_error(InternalServerError, 503), ProviderErrorCode.SERVER_ERROR),
+    ]
+
+    replies = [openai_model(error)[0].next_step(STUB_TRANSCRIPT) for error, _ in cases]
+
+    assert replies == [ProviderFailed(code=code) for _, code in cases]
+
+
+def test_openai_auth_error_raises_typed_error() -> None:
+    model, _ = openai_model(stub_status_error(AuthenticationError, 401))
+
+    with pytest.raises(ProviderAuthenticationError, match="API key"):
+        model.next_step(STUB_TRANSCRIPT)
+
+
+def test_openai_permission_denied_raises_typed_error() -> None:
+    model, _ = openai_model(stub_status_error(PermissionDeniedError, 403))
+
+    with pytest.raises(ProviderPermissionError, match="configured model"):
+        model.next_step(STUB_TRANSCRIPT)
+
+
+def test_openai_not_found_raises_typed_error() -> None:
+    model, _ = openai_model(stub_status_error(NotFoundError, 404))
+
+    with pytest.raises(ProviderModelNotFoundError, match="configured model"):
+        model.next_step(STUB_TRANSCRIPT)
+
+
+def test_openai_refusal_maps_to_refusal_step() -> None:
+    model, _ = openai_model(
+        stub_response(
+            [
+                stub_message(
+                    {"type": "output_text", "text": "Partial.", "annotations": []},
+                    {"type": "refusal", "refusal": "I cannot help with that."},
+                )
+            ]
+        )
+    )
+
+    reply = model.next_step(STUB_TRANSCRIPT)
+
+    assert reply == Refusal(
+        text="I cannot help with that.", usage=Usage(input_tokens=120, output_tokens=30)
+    )
+
+
+def test_openai_calls_with_text_map_to_tool_calls_with_text() -> None:
+    model, _ = openai_model(
+        stub_response(
+            [
+                stub_message({"type": "output_text", "text": "Checking OF1.", "annotations": []}),
+                {
+                    "type": "function_call",
+                    "id": "fc_1",
+                    "call_id": "provider_call_9",
+                    "name": "check_offer",
+                    "arguments": '{"offer_id": "OF1"',
+                    "status": "completed",
+                },
+            ]
+        )
+    )
+
+    reply = model.next_step(STUB_TRANSCRIPT)
+
+    assert reply == ToolCalls(
+        calls=(ToolCallRequest(name="check_offer", arguments='{"offer_id": "OF1"'),),
+        text="Checking OF1.",
+        usage=Usage(input_tokens=120, output_tokens=30),
+    )
+
+
+STUB_USAGE = Usage(input_tokens=120, output_tokens=30)
+STUB_CALL = {
+    "type": "function_call",
+    "id": "fc_1",
+    "call_id": "provider_call_1",
+    "name": "get_booking",
+    "arguments": "{}",
+    "status": "completed",
+}
+
+
+def stub_text(text: str) -> dict[str, object]:
+    return {"type": "output_text", "text": text, "annotations": []}
+
+
+@pytest.mark.parametrize(
+    ("output", "expected"),
+    [
+        ([], FinalText(text="", usage=STUB_USAGE)),
+        ([stub_message()], FinalText(text="", usage=STUB_USAGE)),
+        ([stub_message(stub_text("a"), stub_text("b"))], FinalText(text="ab", usage=STUB_USAGE)),
+        (
+            [STUB_CALL],
+            ToolCalls(
+                calls=(ToolCallRequest(name="get_booking", arguments="{}"),),
+                text=None,
+                usage=STUB_USAGE,
+            ),
+        ),
+        (
+            [STUB_CALL, stub_message({"type": "refusal", "refusal": "No."})],
+            Refusal(text="No.", usage=STUB_USAGE),
+        ),
+    ],
+)
+def test_openai_reply_shapes_map_to_reply_types(
+    output: list[dict[str, object]], expected: ModelReply
+) -> None:
+    model, _ = openai_model(stub_response(output))
+
+    assert model.next_step(STUB_TRANSCRIPT) == expected
+
+
+def test_openai_reply_without_usage_fails_loudly() -> None:
+    response = stub_response([stub_message()]).model_copy(update={"usage": None})
+    model, _ = openai_model(response)
+
+    with pytest.raises(ValueError, match="no token usage"):
+        model.next_step(STUB_TRANSCRIPT)
+
+
+SCENARIO_RULES_PICKS = {
+    "CH8L5F": "OF-6401",
+    "FD2N8Z": "OF-6401",
+    "MK3V7P": "OF-6101",
+    "RD9Q2X": "OF-6201",
+    "WJ6T4N": "OF-6302",
+}
+
+
+def scenario_result(ref: str, *replies: ModelReply) -> dict[str, object]:
+    scripts: dict[str, Sequence[ModelReply]] = {
+        other: [rebook(offer_id)] for other, offer_id in SCENARIO_RULES_PICKS.items()
+    }
+    scripts[ref] = replies
+    agent = ReviewAgent(model=ScriptedModel(scripts), prompt=TEST_PROMPT, mode=ReviewMode.OPENAI)
+    report = review_with_model(
+        JsonFixtureSource(REPO_FIXTURES / "scenarios"),
+        read_exchange_rates(REPO_CONFIG / "exchange_rates.toml"),
+        ReviewPolicy(minimum_saving=Money.of("50.00", USD)),
+        agent,
+    )
+    return json_result(report, ref)
+
+
+def test_scenario_a_model_pick_of_6102_is_accepted() -> None:
+    result = scenario_result("MK3V7P", rebook("OF-6102"))
+
+    assert result["status"] == "REBOOK"
+    assert result["decided_by"] == "model"
+    assert result["offer_id"] == "OF-6102"
+    assert result["nominal_saving"] == {"amount": "80.00", "currency": "USD"}
+    assert result["approval_flags"] == []
+    assert result["best_offer_id"] == "OF-6101"
+
+
+def test_scenario_a_tool_call_then_pick_of_6102_is_accepted() -> None:
+    alone = scenario_result("MK3V7P", rebook("OF-6102"))
+    checked_call = call("check_offer", '{"offer_id":"OF-6102"}')
+
+    result = scenario_result("MK3V7P", calls(checked_call), rebook("OF-6102"))
+
+    assert {key: value for key, value in result.items() if key != "trace"} == {
+        key: value for key, value in alone.items() if key != "trace"
+    }
+    trace = result["trace"]
+    alone_trace = alone["trace"]
+    assert isinstance(trace, dict)
+    assert isinstance(alone_trace, dict)
+    assert trace["tool_calls"] == [
+        {"name": "check_offer", "arguments": '{"offer_id":"OF-6102"}', "ok": True}
+    ]
+    assert trace["turns"] == alone_trace["turns"] + 1
+
+
+def test_scenario_b_model_keep_on_rd9q2x_needs_review() -> None:
+    result = scenario_result("RD9Q2X", keep("The carrier change is not worth it."))
+
+    assert result["status"] == "NEEDS_REVIEW"
+    assert result["decided_by"] == "safety_check"
+    reasoning = text_of(result, "reasoning")
+    assert reasoning.startswith("Model and rules disagree")
+    assert "OF-6201" in reasoning
+    assert reasoning.endswith("Model text: The carrier change is not worth it.")
+
+
+def test_scenario_b_model_rebook_on_rd9q2x_shows_carrier_flag() -> None:
+    result = scenario_result("RD9Q2X", rebook("OF-6201"))
+
+    assert result["status"] == "REBOOK"
+    assert result["decided_by"] == "model"
+    assert result["nominal_saving"] == {"amount": "75.00", "currency": "USD"}
+    assert result["approval_flags"] == ["carrier_change"]
+    assert result["best_offer_id"] is None
+
+
+def test_scenario_c_model_pick_of_6301_needs_review() -> None:
+    result = scenario_result("WJ6T4N", rebook("OF-6301", "Biggest saving on the same flight."))
+
+    assert result["status"] == "NEEDS_REVIEW"
+    assert result["decided_by"] == "safety_check"
+    assert result["offer_id"] == "OF-6301"
+    assert result["nominal_saving"] == {"amount": "210.00", "currency": "USD"}
+    assert result["best_offer_id"] is None
+    reasoning = text_of(result, "reasoning")
+    assert reasoning.startswith("Safety check: rule refundable failed")
+    assert "Rules view: OF-6302 passes every rule" in reasoning
+    assert reasoning.endswith("Model text: Biggest saving on the same flight.")
+
+
+def test_scenario_c_model_pick_of_6302_is_accepted() -> None:
+    result = scenario_result("WJ6T4N", rebook("OF-6302"))
+
+    assert result["status"] == "REBOOK"
+    assert result["nominal_saving"] == {"amount": "60.00", "currency": "USD"}
+    assert result["best_offer_id"] is None

@@ -11,13 +11,20 @@ from pathlib import Path
 
 import pytest
 
-from fare_reshop_agent.reshopping.cli.entry import error_lines, internal_error_fix
+from fare_reshop_agent.reshopping.cli.entry import error_lines, internal_error_fix, run
 from fare_reshop_agent.reshopping.composition.review import (
     REVIEW_FILES,
     DataSet,
+    review_with_live_model,
     review_without_model,
 )
 from fare_reshop_agent.reshopping.composition.setup_error import SetupError
+from fare_reshop_agent.reshopping.infrastructure.openai.provider_errors import (
+    ProviderAuthenticationError,
+    ProviderModelNotFoundError,
+    ProviderPermissionError,
+)
+from fare_reshop_agent.reshopping.orchestration.agent_model import ModelReply, Transcript
 
 FARE_RESHOP = Path(sys.executable).parent / "fare-reshop"
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -338,15 +345,6 @@ def test_internal_error_fix_names_the_failing_command() -> None:
     assert internal_error_fix("doctor") == "uv run fare-reshop doctor --debug"
 
 
-def test_error_format_for_unknown_model() -> None:
-    completed = run_cli("review", "--model", "openai")
-
-    assert completed.returncode == EXIT_SETUP_ERROR
-    assert three_lines(completed.stderr) == ERROR_PREFIXES
-    assert len(completed.stderr.splitlines()) == len(ERROR_PREFIXES)
-    assert "--help" in completed.stderr.splitlines()[2]
-
-
 def test_missing_policy_file_exits_2(tmp_path: Path) -> None:
     root = copied_repo_data(tmp_path)
     (root / "config" / "policy.toml").unlink()
@@ -417,8 +415,8 @@ def test_doctor_passes_on_synced_checkout() -> None:
 
     assert completed.returncode == 0
     lines = completed.stdout.splitlines()
-    assert lines
-    assert all(line.startswith("[ok] ") for line in lines)
+    assert any(line.startswith("[ok] ") for line in lines)
+    assert not any(line.startswith("[FAIL]") for line in lines)
 
 
 def test_doctor_names_fix_for_missing_fixture(tmp_path: Path) -> None:
@@ -495,3 +493,184 @@ def test_rules_only_output_matches_golden_file(data_set: str) -> None:
     completed = run_cli("review", "--model", "none", "--data", data_set)
 
     assert completed.stdout == golden.read_text(encoding="utf-8")
+
+
+FAKE_KEY = "sk-fake-0123456789-do-not-print"
+KEY_VARIABLE = "OPENAI_API_KEY"
+MODEL_VARIABLE = "OPENAI_MODEL"
+ADAPTER_MODULE = "fare_reshop_agent.reshopping.infrastructure.openai.responses_model"
+
+
+class RaisingModel:
+    def __init__(self, error: Exception) -> None:
+        self._error = error
+
+    @property
+    def model_name(self) -> str:
+        return "raising"
+
+    def next_step(self, transcript: Transcript) -> ModelReply:
+        raise self._error
+
+
+def hide_live_extra(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setitem(sys.modules, "openai", None)
+    monkeypatch.delitem(sys.modules, ADAPTER_MODULE, raising=False)
+
+
+def live_review_error(error: Exception) -> SetupError:
+    with pytest.raises(SetupError) as raised:
+        review_with_live_model(DataSet.SAMPLE, {}, model_factory=lambda _: RaisingModel(error))
+    return raised.value
+
+
+def test_openai_without_key_exits_2(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.delenv(KEY_VARIABLE, raising=False)
+    monkeypatch.setenv(MODEL_VARIABLE, "gpt-test")
+
+    code = run(["review", "--model", "openai"])
+
+    assert code == EXIT_SETUP_ERROR
+    assert capsys.readouterr().err.splitlines()[0] == "error: OPENAI_API_KEY is not set"
+
+
+def test_openai_without_model_exits_2(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv(KEY_VARIABLE, FAKE_KEY)
+    monkeypatch.delenv(MODEL_VARIABLE, raising=False)
+
+    code = run(["review", "--model", "openai"])
+
+    assert code == EXIT_SETUP_ERROR
+    assert capsys.readouterr().err.splitlines()[0] == "error: OPENAI_MODEL is not set"
+
+
+def test_openai_without_live_extra_exits_2(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    hide_live_extra(monkeypatch)
+    monkeypatch.setenv(KEY_VARIABLE, FAKE_KEY)
+    monkeypatch.setenv(MODEL_VARIABLE, "gpt-test")
+
+    code = run(["review", "--model", "openai"])
+
+    assert code == EXIT_SETUP_ERROR
+    lines = capsys.readouterr().err.splitlines()
+    assert lines[2].startswith("fix: ")
+    assert "uv sync --extra live" in lines[2]
+
+
+def test_openai_reports_missing_extra_before_key_and_model(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    hide_live_extra(monkeypatch)
+    monkeypatch.delenv(KEY_VARIABLE, raising=False)
+    monkeypatch.delenv(MODEL_VARIABLE, raising=False)
+
+    code = run(["review", "--model", "openai"])
+
+    assert code == EXIT_SETUP_ERROR
+    assert capsys.readouterr().err.splitlines()[0] == "error: the live extra is not installed"
+
+
+def test_openai_reports_missing_key_before_model(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.delenv(KEY_VARIABLE, raising=False)
+    monkeypatch.delenv(MODEL_VARIABLE, raising=False)
+
+    code = run(["review", "--model", "openai"])
+
+    assert code == EXIT_SETUP_ERROR
+    assert capsys.readouterr().err.splitlines()[0] == "error: OPENAI_API_KEY is not set"
+
+
+def test_rejected_key_exits_2() -> None:
+    error = live_review_error(ProviderAuthenticationError())
+
+    assert error.fix == "set OPENAI_API_KEY in .env.local to a valid key"
+
+
+def test_unknown_model_exits_2_with_fix() -> None:
+    error = live_review_error(ProviderModelNotFoundError())
+
+    assert (
+        error.fix == "set OPENAI_MODEL in .env.local to a model name that exists (see .env.example)"
+    )
+
+
+def test_permission_denied_exits_2_with_fix() -> None:
+    error = live_review_error(ProviderPermissionError())
+
+    assert error.fix == (
+        "give the key access to the model in OPENAI_MODEL in the OpenAI project settings,"
+        " or set OPENAI_MODEL in .env.local to a model the key can use"
+    )
+
+
+def test_doctor_marks_live_settings_optional(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.delenv(KEY_VARIABLE, raising=False)
+    monkeypatch.delenv(MODEL_VARIABLE, raising=False)
+
+    code = run(["doctor"])
+
+    optional = [line for line in capsys.readouterr().out.splitlines() if "optional" in line]
+    assert code == 0
+    assert optional == [
+        "[ok] the live extra is installed (optional, only for --model openai)",
+        "[--] OPENAI_API_KEY is not set (optional, only for --model openai)",
+        "[--] OPENAI_MODEL is not set (optional, only for --model openai)",
+    ]
+
+
+def test_doctor_passes_without_live_extra(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    hide_live_extra(monkeypatch)
+
+    code = run(["doctor"])
+
+    lines = capsys.readouterr().out.splitlines()
+    assert code == 0
+    missing = lines.index(
+        "[--] the live extra is not installed (optional, only for --model openai)"
+    )
+    assert lines[missing + 1] == "fix: run uv sync --extra live"
+
+
+def test_doctor_never_prints_key_value(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv(KEY_VARIABLE, FAKE_KEY)
+
+    run(["doctor"])
+
+    output = capsys.readouterr().out
+    assert "OPENAI_API_KEY is set" in output
+    assert FAKE_KEY not in output
+
+
+def test_key_value_never_appears_in_output_or_files(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    monkeypatch.setenv(KEY_VARIABLE, FAKE_KEY)
+    monkeypatch.setenv(MODEL_VARIABLE, "gpt-test")
+    monkeypatch.chdir(copied_repo_data(tmp_path))
+    hide_live_extra(monkeypatch)
+
+    codes = [
+        run(["doctor"]),
+        run(["review", "--model", "none"]),
+        run(["review", "--model", "openai"]),
+    ]
+
+    captured = capsys.readouterr()
+    assert codes == [0, 0, EXIT_SETUP_ERROR]
+    assert FAKE_KEY not in captured.out + captured.err
+    written = [path for path in tmp_path.rglob("*") if path.is_file()]
+    assert not [path for path in written if FAKE_KEY in path.read_text(encoding="utf-8")]

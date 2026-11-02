@@ -1,5 +1,6 @@
 import dataclasses
 import decimal
+import json
 from decimal import Decimal
 
 import pytest
@@ -11,7 +12,7 @@ from sample_data import EUR, EUR_USD, QX7T2A, USD, eur, usd
 
 def test_money_rejects_float_input() -> None:
     with pytest.raises(TypeError, match="float"):
-        Money.of(80.0, USD)  # type: ignore[arg-type]  # a float on purpose: proves the runtime refusal
+        Money.of(json.loads("80.0"), USD)
 
 
 def test_money_rejects_bool_input() -> None:
@@ -50,7 +51,7 @@ def test_exchange_rate_converts_in_both_directions() -> None:
 
 def test_float_trap_rejects_decimal_from_float() -> None:
     with pytest.raises(decimal.FloatOperation):
-        Decimal(0.1)  # noqa: RUF032  # a float on purpose: proves the trap
+        Decimal(json.loads("0.1"))
 
 
 def test_counts_refuse_bool() -> None:

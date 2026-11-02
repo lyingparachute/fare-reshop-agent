@@ -10,7 +10,11 @@ from fare_reshop_agent.reshopping.cli.json_output import render_json
 from fare_reshop_agent.reshopping.cli.table_output import render_table
 from fare_reshop_agent.reshopping.composition.color import standard_output_color
 from fare_reshop_agent.reshopping.composition.doctor import Failed, run_doctor
-from fare_reshop_agent.reshopping.composition.review import DataSet, review_without_model
+from fare_reshop_agent.reshopping.composition.review import (
+    DataSet,
+    review_with_environment_model,
+    review_without_model,
+)
 from fare_reshop_agent.reshopping.composition.setup_error import SetupError
 from fare_reshop_agent.reshopping.orchestration.review import ReviewMode
 
@@ -135,11 +139,7 @@ def _render_review(mode: ReviewMode, data_set: DataSet, output_format: OutputFor
         case ReviewMode.NONE:
             report = review_without_model(data_set)
         case ReviewMode.OPENAI:
-            raise SetupError(
-                error="--model openai is not available in this build",
-                reason="the live model path is not wired to the command line yet",
-                fix="see `uv run fare-reshop --help`",
-            )
+            report = review_with_environment_model(data_set)
         case _:
             assert_never(mode)
     match output_format:
