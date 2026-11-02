@@ -13,11 +13,9 @@ from fare_reshop_agent.reshopping.orchestration.review import ReviewReport
 
 EMPTY_CELL = "-"
 COLUMN_GAP = "  "
-STATUS_COLORS = {
-    Status.REBOOK: "\033[32m",
-    Status.KEEP: "\033[33m",
-    Status.INVALID_DATA: "\033[31m",
-}
+GREEN = "\033[32m"
+YELLOW = "\033[33m"
+RED = "\033[31m"
 RESET = "\033[0m"
 
 
@@ -83,7 +81,7 @@ def _row(result: Recommendation) -> _Row:
 def _colored(status: Status, color: ColorSetting) -> str:
     match color:
         case ColorSetting.ON:
-            return f"{STATUS_COLORS[status]}{status.value}{RESET}"
+            return f"{_status_color(status)}{status.value}{RESET}"
         case ColorSetting.OFF:
             return status.value
         case _:
@@ -93,3 +91,15 @@ def _colored(status: Status, color: ColorSetting) -> str:
 def _first_sentence(text: str) -> str:
     sentence, separator, _ = text.partition(". ")
     return f"{sentence}." if separator else text
+
+
+def _status_color(status: Status) -> str:
+    match status:
+        case Status.REBOOK:
+            return GREEN
+        case Status.KEEP:
+            return YELLOW
+        case Status.INVALID_DATA:
+            return RED
+        case _:
+            assert_never(status)

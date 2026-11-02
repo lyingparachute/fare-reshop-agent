@@ -1,0 +1,155 @@
+{
+  "_comment": "Made-up demo scenarios, not real bookings. They show judgment cases the sample data does not: a choice between savings, a carrier change, a lost refund right, two bookings on one flight and too few seats. Prices are per passenger; totalPaid covers all passengers.",
+  "pnrs": [
+    {
+      "pnr": "MK3V7P",
+      "passengers": 1,
+      "itinerary": [
+        {
+          "origin": "ORD",
+          "destination": "DEN",
+          "departure": "2026-09-10T07:00:00",
+          "arrival": "2026-09-10T10:30:00",
+          "carrier": "UA",
+          "flightNumber": "UA301",
+          "stops": 0,
+          "cabin": "ECONOMY",
+          "fareBasis": "KUA21NR"
+        }
+      ],
+      "ticket": {
+        "pricePerPassenger": { "amount": 500.00, "currency": "USD" },
+        "totalPaid": { "amount": 500.00, "currency": "USD" },
+        "cabin": "ECONOMY",
+        "refundable": false,
+        "changeFeePerPassenger": { "amount": 80.00, "currency": "USD" },
+        "baggageIncludedPieces": 1
+      }
+    },
+    {
+      "pnr": "RD9Q2X",
+      "passengers": 1,
+      "itinerary": [
+        {
+          "origin": "BOS",
+          "destination": "ATL",
+          "departure": "2026-09-12T08:15:00",
+          "arrival": "2026-09-12T10:40:00",
+          "carrier": "DL",
+          "flightNumber": "DL1450",
+          "stops": 0,
+          "cabin": "ECONOMY",
+          "fareBasis": "VDL14NR"
+        }
+      ],
+      "ticket": {
+        "pricePerPassenger": { "amount": 300.00, "currency": "USD" },
+        "totalPaid": { "amount": 300.00, "currency": "USD" },
+        "cabin": "ECONOMY",
+        "refundable": false,
+        "changeFeePerPassenger": { "amount": 75.00, "currency": "USD" },
+        "baggageIncludedPieces": 1
+      }
+    },
+    {
+      "pnr": "WJ6T4N",
+      "passengers": 1,
+      "itinerary": [
+        {
+          "origin": "SEA",
+          "destination": "SFO",
+          "departure": "2026-09-14T12:00:00",
+          "arrival": "2026-09-14T14:20:00",
+          "carrier": "AS",
+          "flightNumber": "AS1",
+          "stops": 0,
+          "cabin": "ECONOMY",
+          "fareBasis": "YAS1REF"
+        }
+      ],
+      "ticket": {
+        "pricePerPassenger": { "amount": 600.00, "currency": "USD" },
+        "totalPaid": { "amount": 600.00, "currency": "USD" },
+        "cabin": "ECONOMY",
+        "refundable": true,
+        "changeFeePerPassenger": { "amount": 90.00, "currency": "USD" },
+        "baggageIncludedPieces": 1
+      }
+    },
+    {
+      "pnr": "CH8L5F",
+      "passengers": 2,
+      "itinerary": [
+        {
+          "origin": "DFW",
+          "destination": "PHX",
+          "departure": "2026-09-18T09:30:00",
+          "arrival": "2026-09-18T11:45:00",
+          "carrier": "AA",
+          "flightNumber": "AA1290",
+          "stops": 0,
+          "cabin": "ECONOMY",
+          "fareBasis": "QAA7NR"
+        }
+      ],
+      "ticket": {
+        "pricePerPassenger": { "amount": 300.00, "currency": "USD" },
+        "totalPaid": { "amount": 600.00, "currency": "USD" },
+        "cabin": "ECONOMY",
+        "refundable": false,
+        "changeFeePerPassenger": { "amount": 60.00, "currency": "USD" },
+        "baggageIncludedPieces": 1
+      }
+    },
+    {
+      "pnr": "FD2N8Z",
+      "passengers": 2,
+      "itinerary": [
+        {
+          "origin": "DFW",
+          "destination": "PHX",
+          "departure": "2026-09-18T09:30:00",
+          "arrival": "2026-09-18T11:45:00",
+          "carrier": "AA",
+          "flightNumber": "AA1290",
+          "stops": 0,
+          "cabin": "ECONOMY",
+          "fareBasis": "QAA7NR"
+        }
+      ],
+      "ticket": {
+        "pricePerPassenger": { "amount": 300.00, "currency": "USD" },
+        "totalPaid": { "amount": 600.00, "currency": "USD" },
+        "cabin": "ECONOMY",
+        "refundable": false,
+        "changeFeePerPassenger": { "amount": 60.00, "currency": "USD" },
+        "baggageIncludedPieces": 1
+      }
+    },
+    {
+      "pnr": "YU6EG1",
+      "passengers": 3,
+      "itinerary": [
+        {
+          "origin": "PDX",
+          "destination": "LAS",
+          "departure": "2026-09-22T06:50:00",
+          "arrival": "2026-09-22T09:20:00",
+          "carrier": "UA",
+          "flightNumber": "UA1622",
+          "stops": 0,
+          "cabin": "ECONOMY",
+          "fareBasis": "GUA7NR"
+        }
+      ],
+      "ticket": {
+        "pricePerPassenger": { "amount": 180.00, "currency": "USD" },
+        "totalPaid": { "amount": 540.00, "currency": "USD" },
+        "cabin": "ECONOMY",
+        "refundable": false,
+        "changeFeePerPassenger": { "amount": 40.00, "currency": "USD" },
+        "baggageIncludedPieces": 1
+      }
+    }
+  ]
+}

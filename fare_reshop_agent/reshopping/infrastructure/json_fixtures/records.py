@@ -1,23 +1,20 @@
 from decimal import Decimal
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, Strict, StrictBool, StrictInt, StrictStr
+from pydantic import Field, Strict, StrictBool, StrictInt, StrictStr
 
 from fare_reshop_agent.reshopping.domain.trip import Cabin
+from fare_reshop_agent.reshopping.infrastructure.file_problem import StrictRecord
 
 type Amount = Annotated[Decimal, Strict()] | StrictInt
 
 
-class Record(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-
-class MoneyRecord(Record):
+class MoneyRecord(StrictRecord):
     amount: Amount
     currency: StrictStr
 
 
-class SegmentRecord(Record):
+class SegmentRecord(StrictRecord):
     origin: StrictStr
     destination: StrictStr
     departure: StrictStr
@@ -29,7 +26,7 @@ class SegmentRecord(Record):
     fare_basis: StrictStr = Field(alias="fareBasis")
 
 
-class TicketRecord(Record):
+class TicketRecord(StrictRecord):
     price_per_passenger: MoneyRecord = Field(alias="pricePerPassenger")
     total_paid: MoneyRecord = Field(alias="totalPaid")
     cabin: Cabin
@@ -38,20 +35,20 @@ class TicketRecord(Record):
     baggage_included_pieces: StrictInt = Field(alias="baggageIncludedPieces")
 
 
-class BookingRecord(Record):
+class BookingRecord(StrictRecord):
     pnr: StrictStr
     passengers: StrictInt
     itinerary: tuple[SegmentRecord, ...]
     ticket: TicketRecord
 
 
-class RouteRecord(Record):
+class RouteRecord(StrictRecord):
     origin: StrictStr
     destination: StrictStr
     departure_date: StrictStr = Field(alias="departureDate")
 
 
-class OfferRecord(Record):
+class OfferRecord(StrictRecord):
     offer_id: StrictStr = Field(alias="offerId")
     route: RouteRecord
     carrier: StrictStr
@@ -68,24 +65,12 @@ class OfferRecord(Record):
     seats_available: StrictInt = Field(alias="seatsAvailable")
 
 
-# Reads only the identifier, so a bad record can still be reported under its own id;
-# the full record models forbid unknown keys.
-class BookingKey(BaseModel):
-    model_config = ConfigDict(extra="ignore", frozen=True)
-    pnr: Annotated[StrictStr, Field(min_length=1)]
-
-
-class OfferKey(BaseModel):
-    model_config = ConfigDict(extra="ignore", frozen=True)
-    offer_id: Annotated[StrictStr, Field(min_length=1, alias="offerId")]
-
-
-class BookingsFile(Record):
+class BookingsFile(StrictRecord):
     comment: StrictStr | None = Field(default=None, alias="_comment")
     pnrs: tuple[object, ...]
 
 
-class OffersFile(Record):
+class OffersFile(StrictRecord):
     comment: StrictStr | None = Field(default=None, alias="_comment")
     captured_at: StrictStr = Field(alias="capturedAt")
     offers: tuple[object, ...]

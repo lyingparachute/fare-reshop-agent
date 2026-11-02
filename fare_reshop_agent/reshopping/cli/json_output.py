@@ -33,10 +33,6 @@ def render_json(report: ReviewReport) -> str:
     return json.dumps(document, indent=JSON_INDENT)
 
 
-def money_text(money: Money) -> str:
-    return f"{money.amount:.2f}"
-
-
 def _data_issue(issue: DataIssue) -> dict[str, Json]:
     return {"kind": issue.kind.value, "id": issue.record_id, "reason": issue.reason}
 
@@ -49,41 +45,47 @@ def _result(result: Recommendation) -> dict[str, Json]:
                 "nominal_saving": _money(result.nominal_saving),
                 "approval_flags": [flag.value for flag in result.approval_flags],
             }
-        case Keep() | Invalid():
-            choice = {"offer_id": None, "nominal_saving": None, "approval_flags": []}
-        case _:
-            assert_never(result)
-    match result:
-        case Rebook() | Keep():
-            judgement: dict[str, Json] = {
-                "reasoning": result.reasoning,
-                "minimum_saving": _money(result.minimum_saving),
-                "exchange_rates": [_rate(usage) for usage in result.rates],
-                "invalid_reason": None,
-                "evaluations": [_evaluation(e) for e in result.evaluations],
-            }
+            return _row(result, choice, _judgement(result))
+        case Keep():
+            return _row(result, _no_choice(), _judgement(result))
         case Invalid():
-            judgement = {
+            judgement: dict[str, Json] = {
                 "reasoning": None,
                 "minimum_saving": None,
                 "exchange_rates": [],
                 "invalid_reason": result.reason,
                 "evaluations": [],
             }
+            return _row(result, _no_choice(), judgement)
         case _:
             assert_never(result)
-    return (
-        {
-            "pnr": result.ref,
-            "status": result.status.value,
-            "rebook": result.status is Status.REBOOK,
-            "decided_by": DecidedBy.RULES.value,
-            "incomplete_reason": None,
-        }
-        | choice
-        | {"confidence": None}
-        | judgement
-    )
+
+
+def _no_choice() -> dict[str, Json]:
+    return {"offer_id": None, "nominal_saving": None, "approval_flags": []}
+
+
+def _judgement(result: Rebook | Keep) -> dict[str, Json]:
+    return {
+        "reasoning": result.reasoning,
+        "minimum_saving": _money(result.minimum_saving),
+        "exchange_rates": [_rate(usage) for usage in result.rates],
+        "invalid_reason": None,
+        "evaluations": [_evaluation(evaluation) for evaluation in result.evaluations],
+    }
+
+
+def _row(
+    result: Recommendation, choice: dict[str, Json], judgement: dict[str, Json]
+) -> dict[str, Json]:
+    header: dict[str, Json] = {
+        "pnr": result.ref,
+        "status": result.status.value,
+        "rebook": result.status is Status.REBOOK,
+        "decided_by": DecidedBy.RULES.value,
+        "incomplete_reason": None,
+    }
+    return header | choice | {"confidence": None} | judgement
 
 
 def _evaluation(evaluation: OfferEvaluation) -> dict[str, Json]:
@@ -101,7 +103,7 @@ def _evaluation(evaluation: OfferEvaluation) -> dict[str, Json]:
 
 
 def _money(money: Money) -> dict[str, Json]:
-    return {"amount": money_text(money), "currency": money.currency.code}
+    return {"amount": f"{money.amount:.2f}", "currency": money.currency.code}
 
 
 def _rate(usage: RateUsage) -> dict[str, Json]:

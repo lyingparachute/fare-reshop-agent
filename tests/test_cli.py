@@ -11,8 +11,12 @@ from pathlib import Path
 
 import pytest
 
-from fare_reshop_agent.reshopping.cli.entry import error_lines
-from fare_reshop_agent.reshopping.composition.review import review_without_model
+from fare_reshop_agent.reshopping.cli.entry import error_lines, internal_error_fix
+from fare_reshop_agent.reshopping.composition.review import (
+    REVIEW_FILES,
+    DataSet,
+    review_without_model,
+)
 from fare_reshop_agent.reshopping.composition.setup_error import SetupError
 
 FARE_RESHOP = Path(sys.executable).parent / "fare-reshop"
@@ -207,7 +211,7 @@ def test_file_problems_become_setup_errors(
     monkeypatch.chdir(root)
 
     with pytest.raises(SetupError) as raised:
-        review_without_model()
+        review_without_model(DataSet.SAMPLE)
 
     assert raised.value.error == error
     assert reason in raised.value.reason
@@ -330,6 +334,10 @@ def test_debug_flag_prints_traceback(tmp_path: Path) -> None:
     assert lines[-1].startswith("RecursionError")
 
 
+def test_internal_error_fix_names_the_failing_command() -> None:
+    assert internal_error_fix("doctor") == "uv run fare-reshop doctor --debug"
+
+
 def test_error_format_for_unknown_model() -> None:
     completed = run_cli("review", "--model", "openai")
 
@@ -414,16 +422,17 @@ def test_doctor_passes_on_synced_checkout() -> None:
 
 
 def test_doctor_names_fix_for_missing_fixture(tmp_path: Path) -> None:
-    root = copied_repo_data(tmp_path)
-    (root / "fixtures" / "pnrs.json").unlink()
+    for index, path in enumerate(REVIEW_FILES):
+        root = copied_repo_data(tmp_path / str(index))
+        (root / path).unlink()
 
-    completed = run_cli("doctor", cwd=root)
+        completed = run_cli("doctor", cwd=root)
 
-    lines = completed.stdout.splitlines()
-    failed = lines.index("[FAIL] fixtures/pnrs.json is readable: the file does not exist")
-    assert "git diff -- fixtures/pnrs.json" in lines[failed + 1]
-    assert lines[failed + 1].startswith("fix: ")
-    assert completed.returncode == EXIT_SETUP_ERROR
+        lines = completed.stdout.splitlines()
+        failed = lines.index(f"[FAIL] {path} is readable: the file does not exist")
+        assert lines[failed + 1].startswith("fix: ")
+        assert f"git diff -- {path}" in lines[failed + 1]
+        assert completed.returncode == EXIT_SETUP_ERROR, path
 
 
 def test_start_script_asks_before_install() -> None:
@@ -444,3 +453,36 @@ def test_start_script_asks_before_sync() -> None:
     assert "Run uv sync now? [y/N]" in completed.stdout
     assert "Nothing was synced." in completed.stdout
     assert completed.returncode == 1
+
+
+def test_data_scenarios_prints_six_results() -> None:
+    completed = run_cli("review", "--data", "scenarios")
+
+    assert completed.returncode == 0
+    assert [result["pnr"] for result in json.loads(completed.stdout)["results"]] == [
+        "CH8L5F",
+        "FD2N8Z",
+        "MK3V7P",
+        "RD9Q2X",
+        "WJ6T4N",
+        "YU6EG1",
+    ]
+
+
+def test_data_default_is_sample() -> None:
+    default = run_cli("review")
+    sample = run_cli("review", "--data", "sample")
+
+    assert default.returncode == 0
+    assert default.stdout == sample.stdout
+
+
+def test_unknown_data_set_exits_2_three_lines() -> None:
+    completed = run_cli("review", "--data", "nope")
+
+    assert completed.returncode == EXIT_SETUP_ERROR
+    assert completed.stderr.splitlines() == [
+        "error: unknown data set 'nope'",
+        "reason: only the configured data sets exist: sample, scenarios",
+        "fix: use --data sample or --data scenarios",
+    ]

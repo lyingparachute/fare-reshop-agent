@@ -1,3 +1,4 @@
+from enum import StrEnum
 from pathlib import Path
 from typing import assert_never
 
@@ -14,26 +15,46 @@ from fare_reshop_agent.reshopping.infrastructure.toml.readers import (
 )
 from fare_reshop_agent.reshopping.orchestration.review import ReviewReport, review_snapshot
 
-FIXTURES_FOLDER = Path("fixtures")
+
+class DataSet(StrEnum):
+    SAMPLE = "sample"
+    SCENARIOS = "scenarios"
+
+
+SAMPLE_FOLDER = Path("fixtures")
+SCENARIOS_FOLDER = Path("fixtures/scenarios")
 POLICY_FILE = Path("config/policy.toml")
 EXCHANGE_RATES_FILE = Path("config/exchange_rates.toml")
 REVIEW_FILES = (
-    FIXTURES_FOLDER / BOOKINGS_FILE,
-    FIXTURES_FOLDER / OFFERS_FILE,
+    *(
+        folder / name
+        for folder in (SAMPLE_FOLDER, SCENARIOS_FOLDER)
+        for name in (BOOKINGS_FILE, OFFERS_FILE)
+    ),
     POLICY_FILE,
     EXCHANGE_RATES_FILE,
 )
 
 
-def review_without_model() -> ReviewReport:
+def review_without_model(data_set: DataSet) -> ReviewReport:
     try:
         return review_snapshot(
-            JsonFixtureSource(FIXTURES_FOLDER),
+            JsonFixtureSource(data_set_folder(data_set)),
             read_exchange_rates(EXCHANGE_RATES_FILE),
             read_policy(POLICY_FILE),
         )
     except FileReadError as err:
         raise setup_error_for(err) from err
+
+
+def data_set_folder(data_set: DataSet) -> Path:
+    match data_set:
+        case DataSet.SAMPLE:
+            return SAMPLE_FOLDER
+        case DataSet.SCENARIOS:
+            return SCENARIOS_FOLDER
+        case _:
+            assert_never(data_set)
 
 
 def inspect_file_fix(path: Path) -> str:

@@ -1,9 +1,16 @@
 from collections.abc import Callable
-from datetime import datetime
+from datetime import date, datetime
 from enum import StrEnum
 from pathlib import Path
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ConfigDict, ValidationError
+
+DATE_FORMAT = "%Y-%m-%d"
+DATE_EXAMPLE = "2026-08-15"
+
+
+class StrictRecord(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
 
 class FileProblem(StrEnum):
@@ -59,3 +66,7 @@ def exact_time(text: str, time_format: str, example: str) -> datetime:
     if parsed.strftime(time_format) != text:
         raise ValueError(f"{text!r} is not a time like {example}")
     return parsed
+
+
+def exact_date(text: str) -> date:
+    return exact_time(text, DATE_FORMAT, DATE_EXAMPLE).date()

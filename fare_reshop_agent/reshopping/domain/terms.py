@@ -26,11 +26,6 @@ class BookingTerms:
     change_fee: Conversion
     minimum: Conversion
 
-    def __post_init__(self) -> None:
-        currency = self.booking.price_per_passenger.currency
-        if self.change_fee.money.currency != currency or self.minimum.money.currency != currency:
-            raise ValueError(f"booking terms of {self.booking.ref} must be in {currency}")
-
     @property
     def rates(self) -> tuple[RateUsage, ...]:
         return self.change_fee.usages(RateUse.BOOKING_FEE) + self.minimum.usages(

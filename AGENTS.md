@@ -4,7 +4,7 @@ Read this before you change anything in the repo.
 
 ## Project
 
-`fare-reshop-agent` compares booked flights with fares on sale now. For each booking it returns one recommendation: rebook or keep, which fare, why, how confident it is, and the net saving after fees.
+`fare-reshop-agent` compares booked flights with fares on sale now. For each booking it returns one recommendation: rebook or keep, which fare, why, and the nominal saving after the change fee.
 
 It must run offline. No API key, network or paid service is needed for the default run or the tests. A live LLM mode is optional and must fail closed: a missing key, a provider error or a bad reply never produces a positive recommendation.
 
@@ -14,7 +14,7 @@ It must run offline. No API key, network or paid service is needed for the defau
 - `fixtures/fares_feed.json`: a snapshot of offers, captured at `capturedAt`. Prices are per passenger.
 - Never edit `fixtures/` to make code or tests pass. Tests that need other data build it in the test or in `tests/`.
 - `ticket.changeFeePerPassenger` is the fee to change the booked ticket today. An offer's `changeFeePerPassenger` is the fee for changing that new fare later. Never use one in place of the other.
-- Currencies differ between bookings. Never compare amounts in different currencies without an exchange rate from the data.
+- Currencies differ between bookings. Never compare amounts in different currencies without an exchange rate from the ExchangeRates port.
 
 ## Where the LLM is allowed
 

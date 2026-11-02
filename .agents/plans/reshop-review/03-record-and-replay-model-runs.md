@@ -2,7 +2,7 @@
 
 Status: ready - the live recording milestones need the owner's key
 
-This ExecPlan is a living document. Progress, Surprises & Discoveries, Decision Log and Outcomes & Retrospective are kept current as work proceeds. Repo plan rules: none. Starts after: Rules-only review (plan 01) and Agent review with a live model (plan 02). The contracts this plan uses from them are listed in Context and Locked decisions. If one of them differs when work starts, stop and report the difference before writing code.
+This ExecPlan is a living document. Progress, Surprises & Discoveries, Decision Log and Outcomes & Retrospective are kept current as work proceeds. Repo plan rules: none. Starts after: Rules-only review (plan 01, landed on main) and Agent review with a live model (plan 02, not built yet). The contracts this plan uses from them are listed in Context and Locked decisions. If one of them differs when work starts, stop and report the difference before writing code.
 
 ## Progress
 
@@ -15,7 +15,7 @@ This ExecPlan is a living document. Progress, Surprises & Discoveries, Decision 
 - [ ] Milestone 7 - Commit the sample recording
 - [ ] Milestone 8 - Replay becomes the default and doctor checks the recording
 - [ ] Milestone 9 - Glossary, ADR 0004 and the re-record runbook
-- [ ] Milestone 10 - Scenario recording: the second paid run, the replay and the committed checks for both data sets (D34). Needs the scenario folder from plan 01 milestone 11.
+- [ ] Milestone 10 - Scenario recording: the second paid run, the replay and the committed checks for both data sets (D34). The scenario data folder is on main (`fixtures/scenarios/`).
 
 Updated at every stopping point. This list, not memory, says where the work is.
 
@@ -23,7 +23,7 @@ Updated at every stopping point. This list, not memory, says where the work is.
 
 After this plan, anyone who clones the repo can run `uv run fare-reshop review` with no key and no network and still see what a real language model decided for each booking. The maintainer records one live run per data set: `recordings/review-run.json` for the sample data and `recordings/scenarios-run.json` for the scenario data (D34). The default run replays the sample file, and `--data scenarios` replays the other. Replay runs the real review loop. The tools read the fixtures for real, and only the model's replies come from the file. Each recorded turn carries a digest of the exact transcript the model saw, so a replay that asks a different question than the recording answered fails loudly instead of reusing an old answer.
 
-Today the repo has no code. Its sample data is in `fixtures/pnrs.json` (5 bookings) and `fixtures/fares_feed.json` (6 offers, captured 2026-07-08T09:00:00Z). Without this plan, the default run either hides the model from anyone without a key (default `none`) or needs a key every time. The owner's real run costs one paid call per turn. A3 bounds one run under 1 USD.
+Today the rules-only review is on main. It runs with `--model none`, which makes no model call and needs no key. Its sample data is in `fixtures/pnrs.json` (5 bookings) and `fixtures/fares_feed.json` (6 offers, captured 2026-07-08T09:00:00Z). Without this plan, the default run either hides the model from anyone without a key (default `none`) or needs a key every time. The owner's real run costs one paid call per turn. A3 bounds one run under 1 USD.
 
 Terms used in this plan:
 
@@ -77,24 +77,27 @@ Non-goals: masking booking references (D30; the fixtures are synthetic, A5). Rec
 
 ## Context and orientation
 
-This plan builds on plan 01 and plan 02 as they stand after their final passes. The names below are the names those plans use. Items marked "new in this plan" do not exist yet.
+This plan builds on plan 01 and plan 02. Plan 01 (Rules-only review) is on main. Plan 02 is not built yet, so its names below are the names its decisions give. Items marked "new in this plan" do not exist yet. Each name and location below was checked against the source on main at commit a245d0b. The implementer checks them again when work starts. Paths under `fare_reshop_agent/` are relative to `fare_reshop_agent/reshopping/`.
 
-Contracts from plan 01 (rules-only review):
+Built on main by plan 01 (Rules-only review):
 
 - Layout (D10): the package is `fare_reshop_agent/reshopping/`, with `domain/`, `domain/port/`, `orchestration/`, `infrastructure/<technology>/`, `composition/` and `cli/`.
-- `ReshopSource` returns one snapshot: the valid bookings, the valid offers, the capture time and the data issues. This plan also needs the references of the records the parser rejected. Plan 01 must expose them (Surprises & Discoveries).
-- `ExchangeRates` is the port (D6). The TOML rate reader returns the parsed rate entries as a tuple (new requirement, Surprises & Discoveries). Composition reads that tuple once and passes it to the rate adapter and to the rates projection. The port keeps its shape.
-- The TOML policy reader returns `ReviewPolicy`.
-- `SetupError` lives in `composition/` with the fields `error`, `reason` and `fix`. Composition maps every typed reader and writer error to it. `cli/` prints the three fields as lines labeled `error:`, `reason:` and `fix:`, and exits 2 (D31).
-- The composition entry takes `environ: Mapping[str, str]` and returns the exit code. Plan 02 adds `model_factory` to it (P27).
-- The rules-only path is `review_snapshot(source, rates, policy)`. Its output does not change, and this plan does not call it.
-- Money in JSON is an object `{amount, currency}` with `amount` as fixed-point text.
-- The data set flag is `--data sample|scenarios` (D34). The local check command is `./scripts/check.sh`. No CI job runs it.
-- Data and config files are read relative to the working directory, which is the repo root in a normal run. The prompt file is read from the package, not from the working directory.
+- Snapshot: `ReshopSource` is a Protocol with `read_snapshot() -> ReshopSnapshot` (`domain/port/reshop_source.py:41-42`). The snapshot holds `captured_at` (UTC), `bookings`, `offers` and `data_issues` (`reshop_source.py:30-34`). `bookings` mixes valid `Booking` values with `RejectedBooking` values, each with the `ref` of a rejected record (`reshop_source.py:24-26`). The `pnrs` digest reads the rejected references from there.
+- Rates: `ExchangeRates` is the port (D6), a Protocol with `find_rate(source, target)` (`domain/port/exchange_rates.py:7-8`). `read_exchange_rates(path) -> TomlExchangeRates` reads the rate file (`infrastructure/toml/readers.py:56`). `TomlExchangeRates` keeps its entries in a private field (`readers.py:45-47`), so the entries cannot be read as a tuple yet. Milestone 3 adds that read. The port keeps its shape.
+- Policy: `read_policy(path) -> ReviewPolicy` (`infrastructure/toml/readers.py:78`).
+- Errors: `SetupError(error, reason, fix)` is a keyword-only exception in `composition/setup_error.py:1-6`. `cli/entry.py` prints its three fields as lines labeled `error:`, `reason:` and `fix:` (`error_lines`, `cli/entry.py:158-162`) and exits 2 (`cli/entry.py:165-166`, D31). Typed read errors subclass `FileReadError(path, problem, fact)` (`infrastructure/file_problem.py:22-27`). `setup_error_for` (`composition/review.py:64`) maps the data and config read errors to `SetupError`. Its fix line is `inspect_file_fix`, not the recording fix of L12, so recording errors get their own mapping.
+- Composition: `review_without_model(data_set: DataSet) -> ReviewReport` reads the fixtures, the rates file and the policy file, and raises `SetupError` (`composition/review.py:39-47`). It takes no environment. Exit codes live in `cli/entry.py::run` (`cli/entry.py:101-130`). The only environment read today is `NO_COLOR`. `standard_output_color()` reads `os.environ` (`composition/color.py:20`), and `color_setting` takes a mapping (`color.py:14`).
+- Rules path: `review_snapshot(source, rates, policy) -> ReviewReport` (`orchestration/review.py:33-36`). Its output does not change, and this plan does not call it. `ReviewReport(mode, as_of, data_issues, results)` is at `orchestration/review.py:26-30`. `ReviewMode` has one member, `NONE` (`review.py:21-22`). The `--model` choices come from it (`cli/entry.py:72-77`). Plan 02 adds the trace to the report (G5). `render_json` lives in `cli/json_output.py`.
+- Money in JSON is `{amount, currency}`, with the amount written to two decimal places (`cli/json_output.py:105-106`).
+- Data sets: `DataSet` is a `StrEnum` with `sample` and `scenarios` (`composition/review.py:19-21`). `--data` takes its choices from it and defaults to `sample` (`cli/entry.py:39-55, 78-84`). The data set folders are `fixtures/` and `fixtures/scenarios/` (`composition/review.py:24-25, 50-57`). This plan adds no data set (D34).
+- Doctor: `run_doctor() -> tuple[CheckResult, ...]` (`composition/doctor.py:27-30`). `CheckResult` is `Passed(check)` or `Failed(check, fact, fix)` (`doctor.py:12-21`). `render_doctor` prints `[ok] <check>` for a pass, and `[FAIL] <check>: <fact>` with a `fix:` line for a failure (`cli/doctor_output.py:11-16`). The doctor exits 2 when any check fails (`cli/entry.py:148-151`).
+- Checks: `./scripts/check.sh` runs `ruff format --check`, `ruff check`, `mypy` and `uv run pytest -q` (`scripts/check.sh:4-7`). The pytest line has no `--all-extras` yet, and Milestone 3 adds it. The repo has no CI config, so only the script runs the checks. The local check command is `./scripts/check.sh`.
+- Tests: `tests/test_review.py` (`InMemorySource`, line 32) holds the review seam tests. `tests/test_fixture_source.py` holds the fixture reader tests. `tests/sample_data.py` has `InMemoryRates` (line 20). `tests/test_cli.py` runs the installed script as a subprocess through `run_cli` (line 53).
+- Paths: data and config files are read relative to the working directory, which is the repo root in a normal run (`composition/review.py:24-27`). The prompt file is read from the package, not from the working directory (D25).
 
-Contracts from plan 02 (agent review with a live model):
+Contracts from plan 02 (agent review with a live model, not on main yet):
 
-- `review_with_model(source, rates, policy, model, prompt)` is the live review. It returns the one report type of plan 02, whose rows are `ModelRow` (one outcome and one trace), `RulesRow`, and their union `ReviewRow`.
+- `review_with_model(source, rates, policy, model, prompt)` is the live review. It returns `ReviewReport`, which plan 02 extends with the trace (G5).
 - `AgentModel` is a Protocol with `next_step(transcript) -> ModelReply`. It also exposes `model_name`, the model's name as text (new requirement, Surprises & Discoveries).
 - `ModelReply` is the union of four frozen types. `ToolCalls` holds `ToolCallRequest` values (name and raw argument text), an optional `text` (null when the reply has none), and `usage`. `FinalText` holds `text` and `usage`. `Refusal` holds `text` and `usage`. `ProviderFailed` holds one `ProviderErrorCode` and no usage. There is no `ModelStep` and no `ModelReview`.
 - `Usage` holds `input_tokens` and `output_tokens`, both integers.
@@ -106,31 +109,34 @@ Contracts from plan 02 (agent review with a live model):
 - The tools are `get_booking`, `search_offers` and `check_offer`. `check_offer` is plan 02's name for the one-offer tool. Earlier drafts called it `evaluate_offer`.
 - The loop assigns call ids as `call_<turn>_<n>` (Context of plan 02).
 - The model name comes from `OPENAI_MODEL`, with no default in code (P17). Plan 02's model factory checks the live extra, the key and the model name before any call (P18). `ProviderAuthenticationError` and the other setup errors are defined in `infrastructure/openai/`.
+- The live composition function is `review_with_live_model(data_set, environ, *, model_factory=...)`, beside `review_without_model`. It raises `SetupError`. The CLI calls it through a no-argument wrapper in `composition/` that passes `os.environ`. Plan 02 adds it (G4).
 - The prices of the configured model are recorded in the "Milestone 1 result" Decision Log entry of plan 02.
 
-Terms that plan 02 defines and this plan uses: the report, the trace, `ModelRow`, `RulesRow`, the call id, the safety check.
+Terms that plan 02 defines and this plan uses: the report, the trace, the call id, the safety check.
 
-Working directory and paths (plan 01 L6): the recording paths are relative to the working directory, like the data and config files. There is no path flag.
+Working directory and paths: the recording paths are relative to the working directory, like the data and config paths (`composition/review.py:24-27`). There is no path flag.
 
-Composition entry points (new in this plan). Each one reads the policy file and the rates file from the working directory, and reads the prompt from the package. Each returns a value or raises a typed error that composition maps to `SetupError`.
+Composition entry points (new in this plan). Each mode gets one composition function beside `review_without_model`. Exit codes stay in `cli/entry.py::run`, which maps `StaleRecording` to exit 3 (D15). Each composition function reads the policy file and the rates file from the working directory, and reads the prompt from the package. Each returns a value or raises a typed error that composition maps to `SetupError`.
 
+- `review_recorded(data_set: DataSet) -> ReviewReport` is the `recorded` mode. It builds the source from `data_set_folder(data_set)` and calls `replay_review` with `recording_path(data_set)`.
+- `record_live_review(data_set, environ, *, model_factory=...)` is the `--record` mode. It gets the model from plan 02's factory (the one that `review_with_live_model` uses, G4), then calls `record_review`. It returns `RecordedRun` or `RecordingStopped`.
 - `record_review(source, recording_path, model)` takes the bookings and offers source, the path of the recording to write, and an `AgentModel` that the caller built. It computes the header, wraps the model, runs `review_with_model`, and returns `RecordedRun` (the report and the path written) or `RecordingStopped`.
-- `replay_review(source, recording_path)` takes no environment. It returns the report with `mode: recorded`, or raises `StaleRecording`.
-- `check_recording(source, recording_path)` returns `RecordingCheck`: either ok, or the changed inputs, or a read error. The doctor prints it.
-- `recording_path(data_set)` maps a `DataSet` to its path (L8).
+- `replay_review(source, recording_path)` reads the policy and rates files, and takes no environment. It returns the report with `mode: recorded`, or raises `StaleRecording`.
+- `check_recording(source, recording_path)` returns `RecordingCheck`: either ok, or the changed inputs, or a read error. `run_doctor()` turns it into a `Passed` or `Failed` check.
+- `recording_path(data_set)` maps a `DataSet` to its path (L8). It sits beside `data_set_folder`.
 - `re_record_command(data_set)` returns the re-record command for that data set (L12).
 
-`DataSet` is a `StrEnum` in `composition/` with the values `sample` and `scenarios`. The CLI's `--data` flag reads its choices from it.
+`DataSet` already exists (`composition/review.py:19-21`) with the values `sample` and `scenarios`. The `--data` flag reads its choices from it. This plan adds no data set.
 
-Environment (L8): only plan 02's model factory reads `OPENAI_MODEL` and the key. `record_review`, `replay_review` and `check_recording` take no environment, so replay and the doctor read no key and no model name.
+Environment (L8): only plan 02's model factory reads `OPENAI_MODEL` and the key. `record_review`, `replay_review` and `check_recording` take no environment, so replay and the doctor read no key and no model name. `record_live_review` passes `environ` only to plan 02's factory.
 
-Test layout. All tests of this plan live in `tests/test_recording.py`. Plan 01's test rules set no exact number of test files, so this file needs no exception. Each test that runs the CLI runs the installed script as a subprocess, as plan 01's CLI tests do. Each review invocation in the tests is written on one line, so a grep can see whether it names `--model`. A test that needs changed data or config copies the inputs into `tmp_path` and calls `monkeypatch.chdir(tmp_path)`, or runs the subprocess there. No test edits a repo file.
+Test layout. All tests of this plan live in `tests/test_recording.py`. `.claude/rules/python.md` sets no limit on the number of test files, so this file needs no exception. Each test that runs the CLI runs the installed script as a subprocess, as `tests/test_cli.py` does (`run_cli`, line 53). Each review invocation in the tests is written on one line, so a grep can see whether it names `--model`. A test that needs changed data or config copies the inputs into `tmp_path` and calls `monkeypatch.chdir(tmp_path)`, or runs the subprocess there. No test edits a repo file.
 
 ## Locked decisions
 
 Each decision below is copied from the feature index by its id, or is this plan's own lock (L1 to L17). Where the index and this plan differ, the Decision Log says so.
 
-D15. CLI: `fare-reshop review` with `--model none|openai|recorded`, `--format json|table`, `--record` (only with `openai`) and `--data sample|scenarios`. The default model is `recorded` after Milestone 8. `--record` with any other model exits 2 and prints `record needs --model openai` on stderr. Exit codes: 0 done, 1 internal error (traceback only with `--debug`), 2 setup error (files, policy, missing extra, missing key, missing model, failed or stopped recording, bad flags, provider authentication), 3 stale recording. Applied here: the missing, unreadable, stopped and failed-write recording errors exit 2; the stale error exits 3.
+D15. CLI: `fare-reshop review` with `--model none|openai|recorded`, `--format json|table`, `--record` (only with `openai`) and `--data sample|scenarios`. The default model is `recorded` after Milestone 8. `--record` with any other model exits 2 and prints `record needs --model openai` on stderr. Exit codes: 0 done, 1 internal error (traceback only with `--debug`), 2 setup error (files, policy, missing extra, missing key, missing model, failed or stopped recording, bad flags, provider authentication), 3 stale recording. Applied here: the missing, unreadable, stopped and failed-write recording errors exit 2; the stale error exits 3. As built, `--model` takes only `none` (`cli/entry.py:72-77`). `run` in `cli/entry.py` owns the exit codes, so exit 3 is added there.
 
 D16. The model seam is `AgentModel.next_step(transcript) -> ModelReply`. The reply is stateless. The transcript holds everything the model sees. The loop assigns call ids once. A provider failure is a typed reply, not an exception. Applied here: the wrapper reads the booking and the turn from the transcript. It never assigns, parses or re-applies a call id.
 
@@ -256,7 +262,7 @@ Recording in `none` mode was rejected, because `none` makes no model call.
 
 Putting the file text conversion in the domain or in orchestration was rejected. The file format is infrastructure, so the schema lives in `infrastructure/json_files/` (L7).
 
-Taking the rate entries from a new `ExchangeRates` list method was rejected. It would change plan 01's port and the in-memory fake. Composition reads the entries once with the rate reader instead (L4, L6).
+Taking the rate entries from a new `ExchangeRates` list method was rejected. It would change the `ExchangeRates` port and its in-memory fake. Composition reads the entries once with the rate reader instead (L4, L6).
 
 A stored argument object (parsed JSON) was rejected. A malformed argument has no object form, and the digest must cover the text as sent (L5).
 
@@ -274,7 +280,7 @@ Risk: a recording goes stale after a change to the bookings, offers, policy, rat
 
 Risk: plan 02 lands without a reply type that holds optional text, without `model_name` on `AgentModel`, or without the names of Context. Mitigation: check these at the start of Milestone 2 and stop to report if they differ. The recording of a mixed reply (L5) and the recorded model name depend on them. Do not add a second reply type or an optional field in this plan.
 
-Risk: plan 01 does not expose the rejected references or does not return the rate entries as a tuple. Mitigation: stop and report before Milestone 3, because the header (L4) depends on both.
+Risk: the rate entries stay private in `TomlExchangeRates`, so the `rates` digest (L4) cannot be computed. Mitigation: Milestone 3 adds the public read before the header code. The rejected references are already on the snapshot (Context), so they need no change.
 
 Risk: plan 02's trace type cannot take the recorded-mode variant (L11). Mitigation: stop and report. Do not add optional fields to the trace.
 
@@ -302,7 +308,7 @@ Goal: `canonical_json`, the money projection, the six projections of L6 (with th
 
 Work: `canonical_json` follows L6. The money projection follows L6. Each projection reads the domain fields by name and writes them under literal keys. The rates projection takes the rate entries that composition reads (L4). Each digest function is the lowercase hex SHA-256 of the canonical text of one projection. Nothing reads a file. Nothing reads the environment.
 
-Seam: the public projection and digest functions, called directly from `tests/test_recording.py`. The snapshot tests load the repo's fixtures through plan 01's fixture adapter. The other tests build their values inside the test. Prior art: plan 01's `tests/test_review_rules.py`.
+Seam: the public projection and digest functions, called directly from `tests/test_recording.py`. The snapshot tests load the repo's fixtures through `JsonFixtureSource` (`infrastructure/json_fixtures/source.py:48`). The other tests build their values inside the test. Prior art: plan 01's `tests/test_fixture_source.py` and `tests/test_review.py`.
 
 Tests, in `tests/test_recording.py`:
 
@@ -325,7 +331,7 @@ Work: first check the plan 02 names listed in Context. Stop and report if they d
 
 If plan 02 has not created the scripted fake model, this milestone creates it in `tests/`. It returns a fixed list of replies for each booking, can return a `ProviderFailed` reply on a chosen turn, and records every transcript it was shown.
 
-Seam: `review_with_model` from `orchestration/`, called in the test with the in-memory ports of plan 01's tests, the wrapper around the scripted fake model, and a header built from the in-memory values. Prior art: the scripted-model tests of plan 02.
+Seam: `review_with_model` from `orchestration/`, called in the test with the in-memory source and rates (`InMemorySource` in `tests/test_review.py`, `InMemoryRates` in `tests/sample_data.py`), the wrapper around the scripted fake model, and a header built from the in-memory values. Prior art: the scripted-model tests of plan 02.
 
 Tests, in `tests/test_recording.py`:
 
@@ -339,7 +345,7 @@ Proof: from the repo root, `uv run --all-extras pytest -q tests/test_recording.p
 
 Goal: `fare-reshop review --model openai --record --data <set>` writes the recording of that data set after a complete run and prints its path on stderr. A stopped run writes nothing and exits 2. `--record` with another model exits 2 before any call.
 
-Work: `infrastructure/json_files/` gets the file models of L5 (pydantic, `extra="forbid"`, `frozen=True`), a converter from the domain recording to the file text and back (the back direction serves Milestone 4), the atomic writer of L7, and the write error. The writer creates the folder when it is missing and removes its temporary file on failure. In `composition/`: the `DataSet` value, `recording_path` (L8), `re_record_command` (L12), `compute_header` (L4), and `record_review(source, recording_path, model)`. `record_review` reads the policy and rate files from the working directory, reads the prompt from the package, computes the header, and writes `model.model_name` into the file. It maps a write error to `SetupError`, and it returns `RecordingStopped` without writing when the wrapper stopped. In `cli/`: the `--data` flag, the `--record` gate (exit 2 with `record needs --model openai` on stderr, and the fix from `re_record_command`), the path line on stderr, the stdout report, and the rendering of a stopped run (L13). The model for `--model openai` comes from plan 02's model factory, which checks the extra, the key and the model name before any call.
+Work: `infrastructure/json_files/` gets the file models of L5 (pydantic, `extra="forbid"`, `frozen=True`), a converter from the domain recording to the file text and back (the back direction serves Milestone 4), the atomic writer of L7, and the write error. The writer creates the folder when it is missing and removes its temporary file on failure. In `composition/`: `recording_path` (L8), `re_record_command` (L12), `compute_header` (L4), `record_review(source, recording_path, model)`, and `record_live_review` (Context). `record_review` reads the policy and rate files from the working directory, reads the prompt from the package, computes the header, and writes `model.model_name` into the file. It maps a write error to `SetupError`, and it returns `RecordingStopped` without writing when the wrapper stopped. In `cli/entry.py`: a `--record` option on the review parser (`build_parser`, lines 58-90), the `--record` gate (exit 2 with `record needs --model openai` on stderr, and the fix from `re_record_command`), the path line on stderr, the stdout report, and the rendering of a stopped run (L13). The model for `--model openai` comes from plan 02's model factory, which checks the extra, the key and the model name before any call. `scripts/check.sh` line 7 changes to `uv run --all-extras pytest -q`, so the suite runs with plan 02's live extra, because the no-secrets test imports the OpenAI adapter. The flag does nothing until plan 02 adds the extra, since `pyproject.toml` has no extras yet.
 
 Seam: `record_review` from `composition/`, called with the in-memory source, the scripted fake model or the OpenAI adapter with a stub client, and a path in `tmp_path`. The CLI rendering functions are called directly. The `--record` gate test runs the installed script as a subprocess from the repo root with `--model none`, which exits before any call.
 
@@ -361,7 +367,7 @@ Proof: from the repo root, `uv run --all-extras pytest -q tests/test_recording.p
 
 Goal: the recording file is read and validated, and a replay with a changed input raises `StaleRecording` before any model turn.
 
-Work: the reader in `infrastructure/json_files/` reads the file as UTF-8, parses it with the file models, requires `schema_version` 1, and returns the domain recording. A missing file, a file that does not parse, and a `schema_version` other than 1 each give a typed read error with the path and the reason. `HeaderInput` and `changed_inputs` (L4) live in `orchestration/`. `replay_review(source, recording_path)` reads the file, computes the current header, and compares. A changed input raises `StaleRecording` with one `HeaderChanged` reason per input. The check runs before the loop, so no model call happens on a stale file. This milestone builds only the stale path and the read errors. The matching path runs the loop, which Milestone 5 adds. Composition maps the read errors to `SetupError`.
+Work: the reader in `infrastructure/json_files/` reads the file as UTF-8, parses it with the file models, requires `schema_version` 1, and returns the domain recording. A missing file, a file that does not parse, and a `schema_version` other than 1 each give a typed read error with the path and the reason. The typed read error subclasses `FileReadError` (`infrastructure/file_problem.py:22-27`), as `TomlFileError` does. `HeaderInput` and `changed_inputs` (L4) live in `orchestration/`. `replay_review(source, recording_path)` reads the file, computes the current header, and compares. A changed input raises `StaleRecording` with one `HeaderChanged` reason per input. The check runs before the loop, so no model call happens on a stale file. This milestone builds only the stale path and the read errors. The matching path runs the loop, which Milestone 5 adds. Composition maps the read errors to `SetupError` with the three L12 lines. It does not call `setup_error_for`, whose fix line differs (`composition/review.py:64-89`).
 
 Seam: `replay_review` from `composition/`, and the reader and `changed_inputs` from their modules. The changed-fixture test calls `replay_review` with the in-memory source, with one fare changed, against a recording made from the original data by `record_review` with the scripted fake model in `tmp_path`. The changed-policy test runs after `monkeypatch.chdir` to a `tmp_path` copy in which one policy value is changed, against a recording made in that copy. The reader tests call the reader on copies in `tmp_path`.
 
@@ -399,7 +405,7 @@ Proof: from the repo root, `uv run --all-extras pytest -q tests/test_recording.p
 
 Goal: a booking that finishes with recorded turns left over fails with `StaleRecording`. The CLI maps every recording error to its exit code with the three lines of L12.
 
-Work: `replay_review` runs the leftover check of L10 after the loop. The CLI maps `StaleRecording` to exit 3 with the stale lines of L12. It maps a missing or unreadable file to exit 2 with the lines of L12. It accepts `--model recorded`. `re_record_command` and the missing-file fix produce exact strings for each data set.
+Work: `replay_review` runs the leftover check of L10 after the loop. `run` in `cli/entry.py` maps `StaleRecording` to exit 3 with the stale lines of L12. It maps a missing or unreadable file to exit 2 with the lines of L12. `ReviewMode` gains `RECORDED` (`orchestration/review.py:21`), which adds the `recorded` choice to `--model`, and `_render_review` (`cli/entry.py:133`) gets its case. `re_record_command` and the missing-file fix produce exact strings for each data set.
 
 Seam: `replay_review` for the leftover test, on a copy of a recording in `tmp_path` with an extra turn beyond a booking's turn count. The CLI tests run the installed script as a subprocess with the working directory set to a `tmp_path` copy of the repo's data and config. Each copy holds a recording written there by `record_review`, or has no `recordings/` folder, or has an unreadable file.
 
@@ -432,7 +438,7 @@ Proof: from the repo root, `env -u OPENAI_API_KEY uv run --all-extras pytest -q 
 
 Goal: `uv run fare-reshop review` with no flags replays the sample recording. `uv run fare-reshop doctor` reports, for each data set, whether the recording is present and matches the data. Neither command needs a key or a model call.
 
-Work: the CLI's default `--model` becomes `recorded` (D23, L16). This step waits for Milestone 7, because the default must replay a committed file. Every existing test that runs the CLI without `--model` gets an explicit `--model none`, and the Surprises & Discoveries section lists each one. The doctor gains `check_recording` (Context) for each data set. Its line contains the word `recording` and the word `ok` when it passes, with the mark the other checks use. When it fails, the line names each changed input, or the read error, and gives the re-record command from `re_record_command`. The doctor exits 0 when every check passes and 2 when any fails (D31). The doctor reads no key and prints no key value. At this milestone the doctor shows one recording line, for the sample data set. Milestone 10 adds the scenario line. The `check_recording` and doctor parts may land before Milestone 7, because their test uses a temporary recording.
+Work: the CLI's default `--model` becomes `recorded` (D23, L16). This step waits for Milestone 7, because the default must replay a committed file. Every existing test that runs the CLI without `--model` gets an explicit `--model none`, and the Surprises & Discoveries section lists each one. `run_doctor()` (`composition/doctor.py:27`) gains one recording check per data set, built from `check_recording` (Context). Its line contains the word `recording` and, when it passes, the `[ok]` mark that `render_doctor` prints (`cli/doctor_output.py:14`). When it fails, the line names each changed input, or the read error, and gives the re-record command from `re_record_command`. The doctor exits 0 when every check passes and 2 when any fails (D31). The doctor reads no key and prints no key value. At this milestone the doctor shows one recording line, for the sample data set. Milestone 10 adds the scenario line. The `check_recording` and doctor parts may land before Milestone 7, because their test uses a temporary recording.
 
 Seam: `check_recording` from `composition/` and the doctor from `cli/`. The changed-data test calls `check_recording` with the in-memory source, with one fare changed, against a recording made from the original data in `tmp_path`. It does not edit a fixture and does not touch the committed recording.
 
@@ -446,7 +452,7 @@ Proof: from the repo root, `uv run --all-extras pytest -q tests/test_recording.p
 
 Goal: `GLOSSARY.md` defines `Recording` and `Stale recording`. `docs/adr/0004-recorded-replay-default.md` records the decision to replay a committed recording by default. `docs/runbooks/re-record.md` says how and when to re-record, and what it costs.
 
-Work: check that `docs/adr/` holds the three ADRs that the earlier plans write (0001 to 0003). If one is missing, stop and report, because the number 0004 assumes them. Add the two terms under their own `### <term>` headings with the capitalized forms `Recording` and `Stale recording`, using the words of this plan's Context and Background. The ADR has exactly five level-two headings in this order: Status (Accepted), Context (why the default run needs an offline model answer, and why whole-traffic recording and a `.partial` file were rejected), Decision (recorded replay is the default, the file is committed, digests guard it, and replay runs the tools for real), Consequences (a change to the data, policy, rates, prompt, tool specs or review rules makes the file stale until the owner pays for a re-record; fixture facts reach the provider and the file, as D30 states), and Alternatives (default `none`, whole-traffic recording, raw-byte digests, a single header digest). The ADR must not link to any file under `.agents/plans/`.
+Work: check that `docs/adr/` holds ADRs 0001 to 0003. On main only 0001 exists (`docs/adr/0001-value-objects-and-deferred-review-aggregate.md`). If 0002 or 0003 is still missing when this milestone starts, stop and report, because the number 0004 assumes them. Add the two terms under their own `### <term>` headings with the capitalized forms `Recording` and `Stale recording`, using the words of this plan's Context and Background. The ADR has exactly five level-two headings in this order: Status (Accepted), Context (why the default run needs an offline model answer, and why whole-traffic recording and a `.partial` file were rejected), Decision (recorded replay is the default, the file is committed, digests guard it, and replay runs the tools for real), Consequences (a change to the data, policy, rates, prompt, tool specs or review rules makes the file stale until the owner pays for a re-record; fixture facts reach the provider and the file, as D30 states), and Alternatives (default `none`, whole-traffic recording, raw-byte digests, a single header digest). The ADR must not link to any file under `.agents/plans/`.
 
 The runbook has three level-two headings. "When to re-record" lists each change that makes `test_committed_recording_matches_data` or `test_committed_recording_replays` fail in `./scripts/check.sh`: any change to the bookings, offers, policy, rates, prompt or tool specs, and any change to the review rules. "Steps" gives the two commands as exact text, `uv run --env-file .env.local --extra live fare-reshop review --data sample --model openai --record` and the same with `--data scenarios`, then the check of the stderr path line, the replay of each data set with `uv run fare-reshop review` and `uv run fare-reshop review --data scenarios`, and the commit of the file by the owner. "Cost" gives the rule that one run costs under 1 USD at the prices in the Decision Log, and points to the token counts that the Decision Log records after each run. The runbook says that only the owner re-records and that the check script never does, because it makes no model call and needs no key (D33). The runbook must not link to plans.
 
@@ -471,12 +477,18 @@ Proof: from the repo root, `env -u OPENAI_API_KEY uv run --all-extras pytest -q 
 
 ## Surprises & Discoveries
 
-- Observation: the repo has no code yet. It has `fixtures/`, `docs/future-work.md`, `.agents/plans/reshop-review/00-INDEX.md` and the plan folder. There is no `docs/adr/`, no `docs/runbooks/` and no `recordings/` folder yet. Every module this plan names is created by plan 01, plan 02 or this plan.
-  Evidence: `ls` of the repo shows none of the three folders.
+- Observation: the first draft of this plan saw no code. Plan 01 has since landed on main (commit a245d0b), and the modules it built are listed in Context. `docs/runbooks/`, `recordings/` and `.gitattributes` do not exist yet. Plan 02 or this plan creates them.
+  Evidence: `ls` reports no `recordings/` and no `.gitattributes`, and `ls docs` shows no `runbooks/`.
 - Observation: plan 02 as it stood before its final pass had `ToolCalls` with no text, no `model_name` on `AgentModel`, the tool name `evaluate_offer` and the step type `ModelStep`. Plan 02's final pass puts the text on `ToolCalls` and the tool name `check_offer`. The `model_name` property is not in plan 02 yet.
   Evidence: `grep` of plan 02 for `model_name` finds nothing. Resolution: this plan requires `model_name` on `AgentModel`, and the report asks the owner to have plan 02 add it.
-- Observation: this plan needs two things from plan 01 that its final pass does not yet name: the rejected booking references on the snapshot, and the rate reader returning the entries as a tuple.
-  Evidence: plan 01 names `ReshopSource` as returning bookings, offers, capture time and data issues. Resolution: Milestone 3 stops and reports if plan 01 lacks either.
+- Observation: this plan needed two things from plan 01. The rejected booking references are met: `ReshopSnapshot.bookings` holds `RejectedBooking` values with a `ref` (`domain/port/reshop_source.py:24-34`). The rate entries are not met: `TomlExchangeRates` keeps them private (`infrastructure/toml/readers.py:45-47`).
+  Evidence: the two locations above, read from the source on main. Resolution: Milestone 3 adds the public read of the rate entries and reports the change.
+- Observation: `review_without_model` maps read errors with `setup_error_for`, whose fix line is `inspect_file_fix`. That fix differs from the recording fix of L12.
+  Evidence: `composition/review.py:60-89`. Resolution: recording errors get their own mapping.
+- Observation: `ReviewMode` has one member, so `--model recorded` needs a new member.
+  Evidence: `orchestration/review.py:21-22`. Resolution: Milestone 6 adds `RECORDED`.
+- Observation: `scripts/check.sh` runs pytest without `--all-extras`, and `pyproject.toml` has no optional dependencies yet.
+  Evidence: `scripts/check.sh:7`. `pyproject.toml` has no `[project.optional-dependencies]` table. Its only groups are under `[dependency-groups]` (line 42). Resolution: Milestone 3 adds the flag, and plan 02 adds the live extra.
 - Observation: the loop assigns call ids after the wrapper has returned the reply, so the wrapper cannot store them.
   Evidence: plan 02 P22 and L9 of this plan.
 - When Milestone 8 is done, record here each existing CLI test that gained an explicit `--model none`.
@@ -503,8 +515,8 @@ Proof: from the repo root, `env -u OPENAI_API_KEY uv run --all-extras pytest -q 
   Rationale: normalization is a domain step (money has two places), so it belongs with the money projection. The serializer stays a plain writer. Tests: `test_decimal_80_00_is_written_fixed_point`, `test_money_is_normalized_to_two_places`, `test_money_with_three_places_is_refused`.
   Date/Author: 2026-11-02, plan writer (round 3).
 
-- Decision: the rates projection takes the rate entries that composition reads once with plan 01's rate reader. Composition passes the same tuple to the rate adapter and to the projection. The `ExchangeRates` port keeps its shape, and the in-memory fake is unchanged.
-  Rationale: the reader already holds every entry. A list method would change plan 01's port and its fake for one digest.
+- Decision: the rates projection takes the rate entries that composition reads once with `read_exchange_rates`, through the public read that Milestone 3 adds. Composition passes the same tuple to the rate adapter and to the projection. The `ExchangeRates` port keeps its shape, and the in-memory fake is unchanged.
+  Rationale: the reader already holds every entry. A list method would change the `ExchangeRates` port and its fake for one digest.
   Date/Author: 2026-11-02, plan writer (round 3).
 
 - Decision: the header has six digests, `pnrs`, `fares_feed`, `policy`, `rates`, `prompt` and `tools`. The single snapshot digest and its wording are removed. `pnrs` covers the valid bookings and the rejected references. `fares_feed` covers the valid offers and the capture time. Data issues are not digested.
@@ -512,7 +524,7 @@ Proof: from the repo root, `env -u OPENAI_API_KEY uv run --all-extras pytest -q 
   Date/Author: 2026-11-02, plan writer (round 3).
 
 - Decision: the stale-recording error, and the stopped and missing messages, use the labels `error:`, `reason:` and `fix:`. The index's S3 text ("what:", "why:", and the short fix) is replaced by these lines.
-  Rationale: plan 01 prints `SetupError` as these three labeled lines, so every error in the CLI reads the same way.
+  Rationale: `cli/entry.py` already prints `SetupError` as these three labeled lines (`error_lines`, `cli/entry.py:158`), so every error in the CLI reads the same way.
   Date/Author: 2026-11-02, plan writer (round 3).
 
 - Decision: the fix command of every re-record message is built by `re_record_command(data_set)` and always names `--extra live` and `--data <set>`. The missing-recording fix names `--data <set> --model none`. Tests assert the exact string for each data set.
@@ -555,7 +567,7 @@ Proof: from the repo root, `env -u OPENAI_API_KEY uv run --all-extras pytest -q 
   Rationale: header problems are known before any call. Leftover turns are known only at the end.
   Date/Author: 2026-11-02, plan writer.
 
-- Decision: the plan adds `tests/test_recording.py`. The no-exact-count rule of plan 01 is gone, so the file is a plain new test file, with no deviation to name.
+- Decision: the plan adds `tests/test_recording.py`. `.claude/rules/python.md` sets no limit on the number of test files, so no exception is needed.
   Rationale: the recording tests cover the recording, the replay and the doctor, and a separate file keeps them apart from the rules and CLI tests.
   Date/Author: 2026-11-02, plan writer (round 3).
 
@@ -598,6 +610,10 @@ Proof: from the repo root, `env -u OPENAI_API_KEY uv run --all-extras pytest -q 
 - Decision: the reader and the writer use the storage format of L5, and their result is a domain value. The reader does not return plan 02 types that carry provider ids, because the file never holds them.
   Rationale: the file and the domain value must agree on the same reply types, and provider ids are not part of the reply types of plan 02.
   Date/Author: 2026-11-02, plan writer (round 3).
+
+- Decision: this plan follows the code on main, where plan 01 (Rules-only review) has landed at commit a245d0b. Recorded mode and `--record` each get one composition function beside `review_without_model`. Their exit codes stay in `cli/entry.py::run`, which also maps a stale recording to exit 3. Recording read errors subclass `FileReadError` and print the L12 lines. `DataSet`, `--data`, `doctor` and `ReviewMode` are reused and extended, not rebuilt. Milestone 3 adds a public read of the rate entries and the `--all-extras` flag. Plan 02's names stay as its decisions give them until it lands.
+  Rationale: the built modules are what the next plans extend. A plan that names shapes the code does not have makes the implementer rebuild them or guess.
+  Date/Author: 2026-11-02, plan writer.
 
 ## Outcomes & Retrospective
 
@@ -680,3 +696,5 @@ Each item below is a behavior check or a consistency check with an exact command
 2026-11-02, round 2 revision after the critic round 2 review. The plan uses `review_with_model` with the recording wrapper as its model. A mixed reply is stored with its text and replayed. A provider failure stays a value. The recorded adapter is a pure lookup, and the leftover check runs in composition. Projections are explicit per digested value, and money has two places. Turn numbers are integers on the transcript. The file schema lives in `infrastructure/json_files/`.
 
 2026-11-02, round 3 revision (final pass), with the findings of the round 3 review applied. Reply types follow plan 02's names; `ModelStep` and `ModelReview` are removed, and a mixed reply is stored as `ToolCalls` with text. Each call's raw argument text is stored and digested as sent, with a malformed-arguments round-trip test. The default suite replays each committed recording with no key and no network, and fails on any stale or leftover turn; the header test stays. Every re-record and fix command comes from `re_record_command(data_set)` and names `--extra live` and `--data <set>`. Projections are defined for pnrs, fares_feed, rates, policy, tools and transcript, and the single snapshot digest is removed. Money normalization and refusal live in the money projection, not in `canonical_json`. The rename test calls the projection and compares to a pinned literal. Proofs name tests by node id, and the DoD lists all 44 names. The OpenAI model comes from `OPENAI_MODEL` with no fallback, and the cost check reads the prices copied from plan 02's Milestone 1 result. Each run's call count is recorded in the Decision Log. The doctor count is 2 in the DoD. Tests use `uv run --all-extras`. The reply key is `reply`, the error labels are `error:`, `reason:` and `fix:`, and the trace variant is `recorded_model` with `recorded_usage`. `AgentModel.model_name` is a requirement on plan 02, and `record_review` takes the model without the environment. The no-review grep searches the working tree. The provenance checks are consistency checks, and the owner attests the live runs in the Decision Log. The plan is slimmed: the DoD keeps behavior and consistency checks, and duplicate items are removed.
+
+2026-11-02, realignment after plan 01 (Rules-only review) landed on main at commit a245d0b. Context now names the built modules, signatures and file:line locations, and marks what plan 02 adds (`review_with_model`, the trace, `review_with_live_model`). Recorded mode and `--record` follow the built pattern, with exit 3 added in `cli/entry.py::run`. Milestone 3 adds the public read of the rate entries and the `--all-extras` flag to `scripts/check.sh`. Milestone 6 adds `ReviewMode.RECORDED`. Milestone 8 appends the recording checks to the doctor. Surprises & Discoveries records the gaps found, and the Decision Log has one entry for this change.

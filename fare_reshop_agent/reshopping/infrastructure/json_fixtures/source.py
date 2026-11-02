@@ -2,7 +2,7 @@ import json
 from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from functools import partial
 from pathlib import Path
@@ -20,16 +20,15 @@ from fare_reshop_agent.reshopping.domain.trip import Booking, BookingRef, Offer,
 from fare_reshop_agent.reshopping.infrastructure.file_problem import (
     FileProblem,
     FileReadError,
+    exact_date,
     exact_time,
     read_model,
     validation_fact,
 )
 from fare_reshop_agent.reshopping.infrastructure.json_fixtures.records import (
-    BookingKey,
     BookingRecord,
     BookingsFile,
     MoneyRecord,
-    OfferKey,
     OfferRecord,
     OffersFile,
 )
@@ -40,8 +39,6 @@ CAPTURE_TIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 CAPTURE_TIME_EXAMPLE = "2026-07-08T09:00:00Z"
 LOCAL_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
 LOCAL_TIME_EXAMPLE = "2026-08-15T08:00:00"
-DATE_FORMAT = "%Y-%m-%d"
-DATE_EXAMPLE = "2026-08-15"
 
 
 class JsonFixtureError(FileReadError):
@@ -99,42 +96,41 @@ def _read_bookings(
     issues: list[DataIssue] = []
     seen: set[str] = set()
     for position, record in enumerate(records):
-        try:
-            ref = BookingKey.model_validate(record).pnr
-        except ValidationError:
-            issues.append(
-                DataIssue(
-                    kind=DataIssueKind.BOOKING_REJECTED,
-                    record_id=f"pnrs[{position}]",
-                    reason="the booking has no readable pnr",
+        match record:
+            case {"pnr": str(ref)} if ref in seen:
+                issues.append(
+                    DataIssue(
+                        kind=DataIssueKind.BOOKING_DUPLICATE,
+                        record_id=ref,
+                        reason=f"a booking with pnr {ref} appears earlier in the file",
+                    )
                 )
-            )
-            continue
-        if ref in seen:
-            issues.append(
-                DataIssue(
-                    kind=DataIssueKind.BOOKING_DUPLICATE,
-                    record_id=ref,
-                    reason=f"a booking with pnr {ref} appears earlier in the file",
+            case {"pnr": str(ref)} if ref:
+                seen.add(ref)
+                match _booking(record):
+                    case Booking() as booking:
+                        bookings.append(booking)
+                    case _Rejection(reason=reason):
+                        bookings.append(RejectedBooking(ref=BookingRef(ref), reason=reason))
+            case _:
+                issues.append(
+                    DataIssue(
+                        kind=DataIssueKind.BOOKING_REJECTED,
+                        record_id=f"pnrs[{position}]",
+                        reason="the booking has no readable pnr",
+                    )
                 )
-            )
-            continue
-        seen.add(ref)
-        match _booking(record):
-            case Booking() as booking:
-                bookings.append(booking)
-            case _Rejection(reason=reason):
-                bookings.append(RejectedBooking(ref=BookingRef(ref), reason=reason))
     return tuple(bookings), tuple(issues)
 
 
 def _read_offers(records: Sequence[object]) -> tuple[tuple[Offer, ...], tuple[DataIssue, ...]]:
     keyed: list[tuple[int, str | None, object]] = []
     for position, record in enumerate(records):
-        try:
-            keyed.append((position, OfferKey.model_validate(record).offer_id, record))
-        except ValidationError:
-            keyed.append((position, None, record))
+        match record:
+            case {"offerId": str(found_id)} if found_id:
+                keyed.append((position, found_id, record))
+            case _:
+                keyed.append((position, None, record))
     copies = Counter(offer_id for _, offer_id, _ in keyed if offer_id is not None)
     offers: list[Offer] = []
     issues: list[DataIssue] = []
@@ -219,7 +215,7 @@ def _offer(record: object) -> Offer | _Rejection:
             checked_bags=parsed.baggage_included_pieces,
             seats_available=parsed.seats_available,
         )
-        route_date = _date(parsed.route.departure_date)
+        route_date = exact_date(parsed.route.departure_date)
     except ValueError as err:
         return _Rejection(reason=str(err))
     if route_date != offer.departure.date():
@@ -244,7 +240,3 @@ def _money(record: MoneyRecord) -> Money:
 
 def _local_time(text: str) -> datetime:
     return exact_time(text, LOCAL_TIME_FORMAT, LOCAL_TIME_EXAMPLE)
-
-
-def _date(text: str) -> date:
-    return exact_time(text, DATE_FORMAT, DATE_EXAMPLE).date()

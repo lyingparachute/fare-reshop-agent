@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
@@ -47,7 +48,7 @@ def review_snapshot(
 
 def _review_booking(
     booking: Booking | RejectedBooking,
-    offers: tuple[Offer, ...],
+    offers: Sequence[Offer],
     captured_at: datetime,
     rates: ExchangeRates,
     policy: ReviewPolicy,
@@ -59,8 +60,5 @@ def _review_booking(
     terms = booking_terms(booking, policy, rates)
     if isinstance(terms, NoRate):
         return Invalid(ref=booking.ref, reason=terms.reason)
-    on_route = sorted(
-        (offer for offer in offers if offer.route == booking.route),
-        key=lambda offer: offer.offer_id,
-    )
+    on_route = [offer for offer in offers if offer.route == booking.route]
     return decide(terms, [evaluate_offer(terms, offer, rates) for offer in on_route])
