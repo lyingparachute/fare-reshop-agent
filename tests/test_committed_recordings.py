@@ -61,7 +61,7 @@ def test_committed_recording_matches_data(
     changed = ", ".join(changed_inputs(current, recorded))
     assert current == recorded, (
         f"{changed} changed since the recording was made; a change to the prompt, the tool specs"
-        f" or the review rules needs the owner's re-record: {re_record_command(data_set)}"
+        f" or the review rules needs a re-record: {re_record_command(data_set)}"
     )
 
 

@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 944 322" width="944" height="322" role="img" aria-labelledby="t d">
+<title id="t">Rule check of every sample offer</title>
+<desc id="d">Each row is one offer for a sample booking. Each column is one hard rule, marked pass or fail. The last columns give the nominal saving and the result. QX7T2A and RT5K8B pass every rule and are rebooked. LM9P4C, ZC3N1D and HB6W9E are kept: two offers fail rules, one offer passes every rule but its saving is below the minimum.</desc>
+<style>
+text{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;fill:#0b0b0b}
+.sec{fill:#52514e}
+.grid{stroke:#d6d5d0}
+.base{stroke:#52514e}
+.muted{fill:#b9b8b2}
+.blue{fill:#2a78d6}
+.glyph{fill:#ffffff;font-weight:700}
+.pass{fill:#0ca30c}
+.fail{fill:#d03b3b}
+.min{stroke:#eb6834}
+.mintext{fill:#b8461a}
+@media (prefers-color-scheme: dark){
+ text{fill:#f0efec}
+ .sec{fill:#c3c2b7}
+ .grid{stroke:#3a3a37}
+ .base{stroke:#c3c2b7}
+ .muted{fill:#5d5c58}
+ .blue{fill:#3987e5}
+ .glyph{fill:#ffffff}
+ .min{stroke:#d95926}
+ .mintext{fill:#f08c62}
+}
+</style>
+<text x="0" y="20" font-size="15" font-weight="600">Rule check of every sample offer</text>
+<text x="0" y="40" font-size="12" class="sec">One fail is enough to drop an offer. A clean offer still needs a saving of at least the minimum (50 USD, 43.73 EUR).</text>
+<text x="181.0" y="66" font-size="11" class="sec" text-anchor="middle">cabin</text>
+<text x="243.0" y="66" font-size="11" class="sec" text-anchor="middle">refundable</text>
+<text x="305.0" y="66" font-size="11" class="sec" text-anchor="middle">bags</text>
+<text x="367.0" y="66" font-size="11" class="sec" text-anchor="middle">stops</text>
+<text x="429.0" y="66" font-size="11" class="sec" text-anchor="middle">seats</text>
+<text x="491.0" y="66" font-size="11" class="sec" text-anchor="middle">future fee</text>
+<text x="553.0" y="66" font-size="11" class="sec" text-anchor="middle">rate</text>
+<text x="598" y="66" font-size="11" class="sec">nominal saving</text>
+<text x="708" y="66" font-size="11" class="sec">result</text>
+<text x="0" y="93" font-size="12" font-weight="600">QX7T2A</text>
+<text x="64" y="93" font-size="12" class="sec">OF-1001</text>
+<g><title>QX7T2A OF-1001: cabin pass</title><rect x="151.0" y="74" width="60" height="30" rx="4" class="pass"/><text x="181.0" y="94" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>QX7T2A OF-1001: refundable pass</title><rect x="213.0" y="74" width="60" height="30" rx="4" class="pass"/><text x="243.0" y="94" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>QX7T2A OF-1001: bags pass</title><rect x="275.0" y="74" width="60" height="30" rx="4" class="pass"/><text x="305.0" y="94" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>QX7T2A OF-1001: stops pass</title><rect x="337.0" y="74" width="60" height="30" rx="4" class="pass"/><text x="367.0" y="94" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>QX7T2A OF-1001: seats pass</title><rect x="399.0" y="74" width="60" height="30" rx="4" class="pass"/><text x="429.0" y="94" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>QX7T2A OF-1001: future fee pass</title><rect x="461.0" y="74" width="60" height="30" rx="4" class="pass"/><text x="491.0" y="94" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>QX7T2A OF-1001: rate pass</title><rect x="523.0" y="74" width="60" height="30" rx="4" class="pass"/><text x="553.0" y="94" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<text x="598" y="93" font-size="12">80.00 USD</text>
+<text x="708" y="93" font-size="12" font-weight="600">REBOOK</text>
+<text x="0" y="125" font-size="12" font-weight="600">RT5K8B</text>
+<text x="64" y="125" font-size="12" class="sec">OF-3001</text>
+<g><title>RT5K8B OF-3001: cabin pass</title><rect x="151.0" y="106" width="60" height="30" rx="4" class="pass"/><text x="181.0" y="126" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>RT5K8B OF-3001: refundable pass</title><rect x="213.0" y="106" width="60" height="30" rx="4" class="pass"/><text x="243.0" y="126" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>RT5K8B OF-3001: bags pass</title><rect x="275.0" y="106" width="60" height="30" rx="4" class="pass"/><text x="305.0" y="126" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>RT5K8B OF-3001: stops pass</title><rect x="337.0" y="106" width="60" height="30" rx="4" class="pass"/><text x="367.0" y="126" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>RT5K8B OF-3001: seats pass</title><rect x="399.0" y="106" width="60" height="30" rx="4" class="pass"/><text x="429.0" y="126" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>RT5K8B OF-3001: future fee pass</title><rect x="461.0" y="106" width="60" height="30" rx="4" class="pass"/><text x="491.0" y="126" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>RT5K8B OF-3001: rate pass</title><rect x="523.0" y="106" width="60" height="30" rx="4" class="pass"/><text x="553.0" y="126" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<text x="598" y="125" font-size="12">363.21 EUR</text>
+<text x="708" y="125" font-size="12" font-weight="600">REBOOK</text>
+<text x="0" y="157" font-size="12" font-weight="600">LM9P4C</text>
+<text x="64" y="157" font-size="12" class="sec">OF-2001</text>
+<g><title>LM9P4C OF-2001: cabin fail</title><rect x="151.0" y="138" width="60" height="30" rx="4" class="fail"/><text x="181.0" y="158" font-size="14" text-anchor="middle" class="glyph">✗</text></g>
+<g><title>LM9P4C OF-2001: refundable pass</title><rect x="213.0" y="138" width="60" height="30" rx="4" class="pass"/><text x="243.0" y="158" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>LM9P4C OF-2001: bags fail</title><rect x="275.0" y="138" width="60" height="30" rx="4" class="fail"/><text x="305.0" y="158" font-size="14" text-anchor="middle" class="glyph">✗</text></g>
+<g><title>LM9P4C OF-2001: stops pass</title><rect x="337.0" y="138" width="60" height="30" rx="4" class="pass"/><text x="367.0" y="158" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>LM9P4C OF-2001: seats pass</title><rect x="399.0" y="138" width="60" height="30" rx="4" class="pass"/><text x="429.0" y="158" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>LM9P4C OF-2001: future fee pass</title><rect x="461.0" y="138" width="60" height="30" rx="4" class="pass"/><text x="491.0" y="158" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>LM9P4C OF-2001: rate pass</title><rect x="523.0" y="138" width="60" height="30" rx="4" class="pass"/><text x="553.0" y="158" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<text x="598" y="157" font-size="12">-90.00 USD</text>
+<text x="708" y="157" font-size="12" font-weight="600">KEEP</text>
+<text x="768" y="157" font-size="12" class="sec">fails cabin, bags</text>
+<text x="0" y="189" font-size="12" font-weight="600">ZC3N1D</text>
+<text x="64" y="189" font-size="12" class="sec">OF-4001</text>
+<g><title>ZC3N1D OF-4001: cabin pass</title><rect x="151.0" y="170" width="60" height="30" rx="4" class="pass"/><text x="181.0" y="190" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>ZC3N1D OF-4001: refundable fail</title><rect x="213.0" y="170" width="60" height="30" rx="4" class="fail"/><text x="243.0" y="190" font-size="14" text-anchor="middle" class="glyph">✗</text></g>
+<g><title>ZC3N1D OF-4001: bags pass</title><rect x="275.0" y="170" width="60" height="30" rx="4" class="pass"/><text x="305.0" y="190" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>ZC3N1D OF-4001: stops pass</title><rect x="337.0" y="170" width="60" height="30" rx="4" class="pass"/><text x="367.0" y="190" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>ZC3N1D OF-4001: seats pass</title><rect x="399.0" y="170" width="60" height="30" rx="4" class="pass"/><text x="429.0" y="190" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>ZC3N1D OF-4001: future fee pass</title><rect x="461.0" y="170" width="60" height="30" rx="4" class="pass"/><text x="491.0" y="190" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>ZC3N1D OF-4001: rate pass</title><rect x="523.0" y="170" width="60" height="30" rx="4" class="pass"/><text x="553.0" y="190" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<text x="598" y="189" font-size="12">140.00 USD</text>
+<text x="708" y="189" font-size="12" font-weight="600">KEEP</text>
+<text x="768" y="189" font-size="12" class="sec">fails refundable</text>
+<text x="0" y="221" font-size="12" font-weight="600">HB6W9E</text>
+<text x="64" y="221" font-size="12" class="sec">OF-5001</text>
+<g><title>HB6W9E OF-5001: cabin pass</title><rect x="151.0" y="202" width="60" height="30" rx="4" class="pass"/><text x="181.0" y="222" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>HB6W9E OF-5001: refundable pass</title><rect x="213.0" y="202" width="60" height="30" rx="4" class="pass"/><text x="243.0" y="222" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>HB6W9E OF-5001: bags pass</title><rect x="275.0" y="202" width="60" height="30" rx="4" class="pass"/><text x="305.0" y="222" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>HB6W9E OF-5001: stops pass</title><rect x="337.0" y="202" width="60" height="30" rx="4" class="pass"/><text x="367.0" y="222" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>HB6W9E OF-5001: seats pass</title><rect x="399.0" y="202" width="60" height="30" rx="4" class="pass"/><text x="429.0" y="222" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>HB6W9E OF-5001: future fee pass</title><rect x="461.0" y="202" width="60" height="30" rx="4" class="pass"/><text x="491.0" y="222" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>HB6W9E OF-5001: rate pass</title><rect x="523.0" y="202" width="60" height="30" rx="4" class="pass"/><text x="553.0" y="222" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<text x="598" y="221" font-size="12">-90.00 USD</text>
+<text x="708" y="221" font-size="12" font-weight="600">KEEP</text>
+<text x="768" y="221" font-size="12" class="sec">below minimum</text>
+<text x="0" y="253" font-size="12" font-weight="600">HB6W9E</text>
+<text x="64" y="253" font-size="12" class="sec">OF-5002</text>
+<g><title>HB6W9E OF-5002: cabin fail</title><rect x="151.0" y="234" width="60" height="30" rx="4" class="fail"/><text x="181.0" y="254" font-size="14" text-anchor="middle" class="glyph">✗</text></g>
+<g><title>HB6W9E OF-5002: refundable pass</title><rect x="213.0" y="234" width="60" height="30" rx="4" class="pass"/><text x="243.0" y="254" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>HB6W9E OF-5002: bags fail</title><rect x="275.0" y="234" width="60" height="30" rx="4" class="fail"/><text x="305.0" y="254" font-size="14" text-anchor="middle" class="glyph">✗</text></g>
+<g><title>HB6W9E OF-5002: stops fail</title><rect x="337.0" y="234" width="60" height="30" rx="4" class="fail"/><text x="367.0" y="254" font-size="14" text-anchor="middle" class="glyph">✗</text></g>
+<g><title>HB6W9E OF-5002: seats pass</title><rect x="399.0" y="234" width="60" height="30" rx="4" class="pass"/><text x="429.0" y="254" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>HB6W9E OF-5002: future fee pass</title><rect x="461.0" y="234" width="60" height="30" rx="4" class="pass"/><text x="491.0" y="254" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<g><title>HB6W9E OF-5002: rate pass</title><rect x="523.0" y="234" width="60" height="30" rx="4" class="pass"/><text x="553.0" y="254" font-size="14" text-anchor="middle" class="glyph">✓</text></g>
+<text x="598" y="253" font-size="12">-40.00 USD</text>
+<text x="708" y="253" font-size="12" font-weight="600">KEEP</text>
+<text x="768" y="253" font-size="12" class="sec">fails cabin, bags, stops</text>
+<rect x="0" y="292" width="16" height="16" rx="4" class="pass"/><text x="8" y="305" font-size="11" text-anchor="middle" class="glyph">✓</text><text x="22" y="305" font-size="12" class="sec">pass</text>
+<rect x="70" y="292" width="16" height="16" rx="4" class="fail"/><text x="78" y="305" font-size="11" text-anchor="middle" class="glyph">✗</text><text x="92" y="305" font-size="12" class="sec">fail</text>
+</svg>

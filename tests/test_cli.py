@@ -8,6 +8,7 @@ import sys
 import time
 from collections.abc import Callable, Mapping
 from pathlib import Path
+from types import MappingProxyType
 
 import pytest
 
@@ -374,29 +375,36 @@ def test_table_shows_invalid_rows_empty_routes_and_data_issues(tmp_path: Path) -
     lines = run_cli("review", "--model", "none", "--format", "table", cwd=root).stdout.splitlines()
 
     assert lines == [
-        "PNR     STATUS        OFFER    SAVING      REASON",
-        "HB6W9E  KEEP          -        -           No offer reaches the minimum.",
-        "LM9P4C  KEEP          -        -           No offers on this route and date.",
-        "QX7T2A  INVALID_DATA  -        -           passengers must be at least 1, got 0",
-        "RT5K8B  REBOOK        OF-3001  363.21 EUR  -",
-        "ZC3N1D  KEEP          -        -           No offer passes every rule.",
+        "Mode: rules only, no model.",
+        "",
+        "PNR     STATUS        OFFER    SAVING      FLAGS  REASON",
+        "HB6W9E  KEEP          -        -           -      No offer reaches the minimum.",
+        "LM9P4C  KEEP          -        -           -      No offers on this route and date.",
+        "QX7T2A  INVALID_DATA  -        -           -      passengers must be at least 1, got 0",
+        "RT5K8B  REBOOK        OF-3001  363.21 EUR  -      Biggest saving that passes every rule.",
+        "ZC3N1D  KEEP          -        -           -      No offer passes every rule.",
         "data issue: offer_rejected OF-2001: route.departureDate 2026-09-03 differs from the"
         " departure 2026-09-02 13:10:00",
     ]
 
 
 START_SCRIPT = REPO_ROOT / "start.sh"
+DATA_SETS = ("sample", "scenarios")
+NO_EXTRA_ENV: Mapping[str, str] = MappingProxyType({})
+RECORDED_TITLE = "Mode: replay of a recorded model run. No model is called now."
 SYSTEM_PATH = "/usr/bin:/bin"
 
 
-def run_start_script(path: str, answers: str) -> subprocess.CompletedProcess[str]:
+def run_start_script(
+    path: str, answers: str, extra_env: Mapping[str, str] = NO_EXTRA_ENV
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [START_SCRIPT],
         input=answers,
         capture_output=True,
         text=True,
         check=False,
-        env={"PATH": path, "HOME": os.environ["HOME"]},
+        env={"PATH": path, "HOME": os.environ["HOME"], **extra_env},
     )
 
 
@@ -438,9 +446,27 @@ def test_start_script_asks_before_sync() -> None:
     completed = run_start_script(f"{Path(uv).parent}:{SYSTEM_PATH}", answers="n\n")
 
     assert "Install uv now?" not in completed.stdout
-    assert "Run uv sync now? [y/N]" in completed.stdout
+    assert "Run uv sync now? It creates .venv in this folder" in completed.stdout
     assert "Nothing was synced." in completed.stdout
     assert completed.returncode == 1
+
+
+def test_start_script_shows_both_data_sets_as_tables() -> None:
+    uv = shutil.which("uv")
+    assert uv is not None, "the tests run through uv, so uv must be on PATH"
+
+    completed = run_start_script(f"{Path(uv).parent}:{SYSTEM_PATH}", answers="y\nn\n")
+
+    assert completed.returncode == 0, completed.stderr
+    lines = completed.stdout.splitlines()
+    titles = [line for line in lines if line.startswith("Mode: ")]
+    assert titles == [RECORDED_TITLE] * len(DATA_SETS)
+    assert len([line for line in lines if line.startswith("PNR ")]) == len(DATA_SETS)
+    rows = [line.split()[:3] for line in lines]
+    assert ["QX7T2A", "REBOOK", "OF-1001"] in rows
+    assert ["MK3V7P", "REBOOK", "OF-6101"] in rows
+    assert ["CH8L5F", "NEEDS_REVIEW", "OF-6401"] in rows
+    assert "== Try next ==" in lines
 
 
 def test_data_scenarios_prints_six_results() -> None:
@@ -653,3 +679,44 @@ def test_key_value_never_appears_in_output_or_files(
     assert FAKE_KEY not in captured.out + captured.err
     written = [path for path in tmp_path.rglob("*") if path.is_file()]
     assert not [path for path in written if FAKE_KEY in path.read_text(encoding="utf-8")]
+
+
+def test_start_script_asks_before_a_live_run_when_a_key_is_set() -> None:
+    uv = shutil.which("uv")
+    assert uv is not None, "the tests run through uv, so uv must be on PATH"
+
+    completed = run_start_script(
+        f"{Path(uv).parent}:{SYSTEM_PATH}",
+        answers="y\nn\n",
+        extra_env={"OPENAI_API_KEY": "<test-key-never-used>"},
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert "An OpenAI key was found. Call the live model" in completed.stdout
+    assert "== Sample bookings (recorded model run, no key needed) ==" in completed.stdout
+    titles = [line for line in completed.stdout.splitlines() if line.startswith("Mode: ")]
+    assert titles == [RECORDED_TITLE] * len(DATA_SETS)
+
+
+def test_start_script_calls_the_live_model_after_a_yes(tmp_path: Path) -> None:
+    stub_uv = tmp_path / "uv"
+    stub_uv.write_text('#!/bin/sh\necho "uv $*"\n', encoding="utf-8")
+    stub_uv.chmod(0o755)
+
+    completed = run_start_script(
+        f"{tmp_path}:{SYSTEM_PATH}",
+        answers="y\ny\n",
+        extra_env={"OPENAI_API_KEY": "<test-key-never-used>"},
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    review_calls = [
+        line
+        for line in completed.stdout.splitlines()
+        if line.startswith("uv run ") and " review " in line
+    ]
+    assert len(review_calls) == len(DATA_SETS)
+    for call in review_calls:
+        assert "--extra live fare-reshop review --model openai" in call
+        assert call.endswith("--format table")
+    assert "== Sample bookings (live model run) ==" in completed.stdout

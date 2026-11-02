@@ -24,6 +24,7 @@ from fare_reshop_agent.reshopping.cli.table_output import render_table
 from fare_reshop_agent.reshopping.composition.color import ColorSetting
 from fare_reshop_agent.reshopping.domain.money import Money
 from fare_reshop_agent.reshopping.domain.port.reshop_source import ReshopSnapshot
+from fare_reshop_agent.reshopping.domain.shared_seats import SeatShortfall
 from fare_reshop_agent.reshopping.domain.terms import BookingTerms, ReviewPolicy, booking_terms
 from fare_reshop_agent.reshopping.domain.trip import BookingRef, Cabin, Offer, OfferId
 from fare_reshop_agent.reshopping.infrastructure.json_fixtures.source import JsonFixtureSource
@@ -53,6 +54,7 @@ from fare_reshop_agent.reshopping.orchestration.agent_model import (
     Usage,
     UserMessage,
 )
+from fare_reshop_agent.reshopping.orchestration.agent_review import ModelRebook, SeatConflict
 from fare_reshop_agent.reshopping.orchestration.booking_loop import (
     Answered,
     IncompleteReason,
@@ -293,6 +295,73 @@ def test_model_rebook_on_eligible_offer_is_accepted() -> None:
     assert result["reasoning"] == "Model text: Same flight, lower fare."
 
 
+def test_model_picks_that_overbook_a_shared_offer_need_review() -> None:
+    second = dataclasses.replace(sample_booking("QX7T2A"), ref=BookingRef("QX7T2B"))
+    snapshot = dataclasses.replace(
+        with_bookings(sample_booking("QX7T2A"), second),
+        offers=(dataclasses.replace(OF_1001, seats_available=1),),
+    )
+    report, _ = review_by_model(
+        snapshot, {"QX7T2A": [rebook("OF-1001")], "QX7T2B": [rebook("OF-1001")]}
+    )
+
+    for ref in ("QX7T2A", "QX7T2B"):
+        result = json_result(report, ref)
+        assert list(result) == MODEL_RESULT_KEYS
+        assert result["status"] == "NEEDS_REVIEW"
+        assert result["rebook"] is False
+        assert result["decided_by"] == "safety_check"
+        assert result["offer_id"] == "OF-1001"
+        assert result["nominal_saving"] == {"amount": "80.00", "currency": "USD"}
+        assert result["confidence"] == "0.82"
+        assert result["best_offer_id"] is None
+        assert text_of(result, "reasoning").startswith(
+            "Seat check: OF-1001 has 1 seat left, and QX7T2A, QX7T2B need 2 together."
+        )
+
+
+def test_seat_check_counts_only_proposed_rebookings() -> None:
+    second = dataclasses.replace(sample_booking("QX7T2A"), ref=BookingRef("QX7T2B"))
+    third = dataclasses.replace(sample_booking("QX7T2A"), ref=BookingRef("QX7T2C"))
+    snapshot = dataclasses.replace(
+        with_bookings(sample_booking("QX7T2A"), second, third),
+        offers=(dataclasses.replace(OF_1001, seats_available=1),),
+    )
+    report, _ = review_by_model(
+        snapshot,
+        {
+            "QX7T2A": [rebook("OF-1001")],
+            "QX7T2B": [keep("Not worth it.")],
+            "QX7T2C": [rebook("OF-404")],
+        },
+    )
+
+    statuses = {ref: json_result(report, ref)["status"] for ref in ("QX7T2A", "QX7T2B", "QX7T2C")}
+    assert statuses == {"QX7T2A": "REBOOK", "QX7T2B": "NEEDS_REVIEW", "QX7T2C": "NEEDS_REVIEW"}
+    for ref in ("QX7T2B", "QX7T2C"):
+        assert not text_of(json_result(report, ref), "reasoning").startswith("Seat check")
+
+
+def test_seat_conflict_must_match_its_shortfall() -> None:
+    report, _ = review_by_model(qx7t2a_snapshot(), {"QX7T2A": [rebook("OF-1001")]})
+    proposal = report.results[0].outcome
+    assert isinstance(proposal, ModelRebook)
+    other_offer = SeatShortfall(
+        offer_id=OfferId("OF-9999"),
+        seats_available=1,
+        seats_needed=2,
+        refs=(BookingRef("QX7T2A"), BookingRef("QX7T2B")),
+    )
+    other_bookings = dataclasses.replace(
+        other_offer, offer_id=OfferId("OF-1001"), refs=(BookingRef("AAA111"), BookingRef("BBB222"))
+    )
+
+    with pytest.raises(ValueError, match="not the short offer OF-9999"):
+        SeatConflict(proposal=proposal, shortfall=other_offer)
+    with pytest.raises(ValueError, match="not one of the bookings short of seats"):
+        SeatConflict(proposal=proposal, shortfall=other_bookings)
+
+
 def test_model_keep_with_eligible_offer_needs_review() -> None:
     result = qx7t2a_result(keep("A change is not worth it."))
 
@@ -398,24 +467,59 @@ def test_model_rows_have_fixed_key_order() -> None:
     assert list(result) == MODEL_RESULT_KEYS
 
 
-def test_table_shows_flags_in_model_modes_only() -> None:
+def table_body(report: ReviewReport) -> list[str]:
+    title, blank, *body = render_table(report, ColorSetting.OFF).splitlines()
+    assert title.startswith("Mode: ")
+    assert blank == ""
+    return body
+
+
+def test_table_title_names_the_mode() -> None:
+    snapshot = qx7t2a_snapshot(OF_1002_CHEAPER)
+    model_report, _ = review_by_model(snapshot, {"QX7T2A": [rebook("OF-1002")]})
+    rules_report = review_snapshot(InMemorySource(snapshot), DEMO_RATES, POLICY)
+    recorded_report = dataclasses.replace(model_report, mode=ReviewMode.RECORDED)
+
+    def title(report: ReviewReport) -> str:
+        return render_table(report, ColorSetting.OFF).splitlines()[0]
+
+    assert title(rules_report) == "Mode: rules only, no model."
+    assert title(model_report) == "Mode: live model run."
+    assert title(recorded_report) == (
+        "Mode: replay of a recorded model run. No model is called now."
+    )
+
+
+def test_table_shows_flags_in_every_mode() -> None:
     snapshot = qx7t2a_snapshot(OF_1002_CHEAPER)
     model_report, _ = review_by_model(snapshot, {"QX7T2A": [rebook("OF-1002")]})
     rules_report = review_snapshot(InMemorySource(snapshot), DEMO_RATES, POLICY)
 
-    model_lines = render_table(model_report, ColorSetting.OFF).splitlines()
-    rules_lines = render_table(rules_report, ColorSetting.OFF).splitlines()
+    for report in (model_report, rules_report):
+        lines = table_body(report)
+        assert lines[0].split() == ["PNR", "STATUS", "OFFER", "SAVING", "FLAGS", "REASON"]
+        assert lines[1].split()[:6] == [
+            "QX7T2A",
+            "REBOOK",
+            "OF-1002",
+            "90.00",
+            "USD",
+            "carrier_change",
+        ]
 
-    assert model_lines[0].split() == ["PNR", "STATUS", "OFFER", "SAVING", "FLAGS", "REASON"]
-    assert model_lines[1].split()[:6] == [
-        "QX7T2A",
-        "REBOOK",
-        "OF-1002",
-        "90.00",
-        "USD",
-        "carrier_change",
-    ]
-    assert rules_lines[0].split() == ["PNR", "STATUS", "OFFER", "SAVING", "REASON"]
+
+def test_table_gives_a_reason_for_every_rebook() -> None:
+    snapshot = qx7t2a_snapshot(OF_1002_CHEAPER)
+    rules_report = review_snapshot(InMemorySource(snapshot), DEMO_RATES, POLICY)
+    best_pick, _ = review_by_model(snapshot, {"QX7T2A": [rebook("OF-1002")]})
+    smaller_pick, _ = review_by_model(snapshot, {"QX7T2A": [rebook("OF-1001")]})
+
+    def reason(report: ReviewReport) -> str:
+        return table_body(report)[1].split("  ")[-1]
+
+    assert reason(rules_report) == "Biggest saving that passes every rule."
+    assert reason(best_pick) == "Model pick, passes every rule."
+    assert reason(smaller_pick) == "Model pick, passes every rule. OF-1002 saves more."
 
 
 def test_model_choice_below_minimum_needs_review() -> None:

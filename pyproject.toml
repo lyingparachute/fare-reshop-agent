@@ -43,7 +43,7 @@ known-local-folder = ["cli_process", "openai_stub", "recording_data", "sample_da
 [tool.mypy]
 strict = true
 python_version = "3.12"
-files = ["fare_reshop_agent", "tests"]
+files = ["fare_reshop_agent", "scripts", "tests"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

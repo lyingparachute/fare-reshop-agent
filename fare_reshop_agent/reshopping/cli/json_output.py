@@ -19,6 +19,7 @@ from fare_reshop_agent.reshopping.orchestration.agent_review import (
     Incomplete,
     ModelRebook,
     NeedsReview,
+    SeatConflict,
 )
 from fare_reshop_agent.reshopping.orchestration.booking_loop import Trace
 from fare_reshop_agent.reshopping.orchestration.replay import RecordedTrace
@@ -60,10 +61,15 @@ def _result(row: ReviewRow) -> dict[str, Json]:
     best: dict[str, Json] = {}
     trace: dict[str, Json] = {}
     if row.trace is not None:
-        best_offer = outcome.best_offer_id if isinstance(outcome, ModelRebook) else None
+        best_offer = _best_offer_id(outcome)
         best = {"best_offer_id": best_offer}
         trace = {"trace": _trace(row.trace)}
     return header | choice | best | _confidence(outcome) | _judgement(outcome) | trace
+
+
+def _best_offer_id(outcome: AgentOutcome) -> OfferId | None:
+    proposal = outcome.proposal if isinstance(outcome, SeatConflict) else outcome
+    return proposal.best_offer_id if isinstance(proposal, ModelRebook) else None
 
 
 def _decided_by(outcome: AgentOutcome) -> Json:
@@ -72,7 +78,7 @@ def _decided_by(outcome: AgentOutcome) -> Json:
             return DecidedBy.RULES.value
         case ModelRebook():
             return DecidedBy.MODEL.value
-        case NeedsReview():
+        case NeedsReview() | SeatConflict():
             return DecidedBy.SAFETY_CHECK.value
         case Incomplete():
             return None
@@ -84,6 +90,11 @@ def _choice(outcome: AgentOutcome) -> dict[str, Json]:
     match outcome:
         case Rebook() | ModelRebook() | NeedsReview():
             return _offer_choice(outcome.offer_id, outcome.nominal_saving, outcome.approval_flags)
+        case SeatConflict():
+            proposal = outcome.proposal
+            return _offer_choice(
+                proposal.offer_id, proposal.nominal_saving, proposal.approval_flags
+            )
         case Keep() | Invalid() | Incomplete():
             return _offer_choice(None, None, ())
         case _:
@@ -101,9 +112,10 @@ def _offer_choice(
 
 
 def _confidence(outcome: AgentOutcome) -> dict[str, Json]:
-    if not isinstance(outcome, ModelRebook | NeedsReview):
+    judged = outcome.proposal if isinstance(outcome, SeatConflict) else outcome
+    if not isinstance(judged, ModelRebook | NeedsReview):
         return {"confidence": None}
-    return {"confidence": _decimal(outcome.confidence), "confidence_note": CONFIDENCE_NOTE}
+    return {"confidence": _decimal(judged.confidence), "confidence_note": CONFIDENCE_NOTE}
 
 
 def _judgement(outcome: AgentOutcome) -> dict[str, Json]:
@@ -118,7 +130,7 @@ def _judgement(outcome: AgentOutcome) -> dict[str, Json]:
             }
         case Rebook() | Keep():
             return _rules_judgement(outcome.reasoning, outcome)
-        case ModelRebook() | NeedsReview() | Incomplete():
+        case ModelRebook() | NeedsReview() | Incomplete() | SeatConflict():
             return _rules_judgement(outcome.reasoning, outcome.rules)
         case _:
             assert_never(outcome)

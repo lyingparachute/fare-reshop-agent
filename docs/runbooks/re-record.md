@@ -1,6 +1,6 @@
 # Re-record the model runs
 
-A re-record costs money, so only the owner runs it. `./scripts/check.sh` never re-records: it makes no model call and needs no key.
+A re-record makes paid model calls, so only the maintainer runs it. `./scripts/check.sh` never re-records: it makes no model call and needs no key.
 
 ## When to re-record
 
@@ -46,3 +46,10 @@ One run of a data set is expected to cost under 1 USD. The model makes one paid 
 The sample run of 2026-11-02 on `gpt-5.4-mini` made 8 calls: 6,403 input tokens and 261 output tokens. At the list prices of 0.75 USD input and 4.50 USD output per 1M tokens, that is about 0.006 USD.
 
 The scenario run of the same day made 21 calls: 17,820 input tokens and 664 output tokens, about 0.016 USD.
+
+To compute the cost of a recording, pass the prices per 1M tokens and the matching bookings file:
+
+```sh
+IN_USD_PER_MTOK=0.75 OUT_USD_PER_MTOK=4.50 uv run python scripts/cost.py recordings/review-run.json fixtures/pnrs.json
+IN_USD_PER_MTOK=0.75 OUT_USD_PER_MTOK=4.50 uv run python scripts/cost.py recordings/scenarios-run.json fixtures/scenarios/pnrs.json
+```

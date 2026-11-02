@@ -95,10 +95,7 @@ def recorded_run(
     return run
 
 
-RE_RECORD_SAMPLE = (
-    "fix: uv run --env-file .env.local --extra live fare-reshop review --data sample"
-    " --model openai --record"
-)
+SAMPLE_FIX_NONE = "fix: uv run fare-reshop review --data sample --model none"
 
 
 def assert_replay_matches(recorded: ReviewRow, replayed: ReviewRow) -> None:
@@ -315,7 +312,8 @@ def test_stale_recording_exits_3(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     assert result.stdout == ""
     lines = result.stderr.splitlines()
     assert lines[0] == "error: stale recording: policy changed"
-    assert lines[2] == RE_RECORD_SAMPLE
+    assert "docs/runbooks/re-record.md" in lines[1]
+    assert lines[2] == SAMPLE_FIX_NONE
 
 
 @pytest.mark.parametrize("changed", list(HeaderInput))
@@ -336,9 +334,6 @@ def test_duplicate_turn_is_read_error(tmp_path: Path) -> None:
         RecordingFileError, match="booking QX7T2A turn 1 is recorded more than once"
     ):
         read_recording(path)
-
-
-SAMPLE_FIX_NONE = "fix: uv run fare-reshop review --data sample --model none"
 
 
 def test_leftover_turn_is_stale(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -432,10 +427,7 @@ def test_stale_message_names_every_reason(capsys: pytest.CaptureFixture[str]) ->
         " booking QX7T2A turn 3 is missing;"
         " booking RT5K8B turn 2 was recorded but never asked for"
     )
-    assert lines[2] == (
-        "fix: uv run --env-file .env.local --extra live fare-reshop review"
-        " --data scenarios --model openai --record"
-    )
+    assert lines[2] == "fix: uv run fare-reshop review --data scenarios --model none"
 
 
 def test_booking_without_model_turns_leaves_every_turn_over() -> None:

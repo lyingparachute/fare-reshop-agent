@@ -14,7 +14,7 @@ One fare on sale now for the same origin, destination and departure date as a bo
 
 ### Rule check
 
-One of seven tests that compare an offer with a booking: cabin, refundable, bags, stops, seats, future change fee and exchange rate. Each gives PASS or FAIL with a reason. There is no third result.
+One of seven tests that compare an offer with a booking: cabin, refundable, bags, stops, seats, future change fee and exchange rate. Each gives PASS or FAIL with a reason.
 
 ### Eligible offer
 
@@ -42,13 +42,17 @@ A stored rate between two currencies, with the date of the rate, for example 1 E
 
 ### Recommendation
 
-The decision for one booking: rebook, keep, or invalid data. A rebook names the chosen offer, its nominal saving, its approval flags, the reasoning and the rates used. A keep gives the reasoning, the minimum saving and the rates. Invalid data gives the reason the booking could not be reviewed. In a model mode, two more results exist: needs review and incomplete analysis. Each result also says what decided it: the rules, the model or the safety check.
+The decision for one booking: rebook, keep, or invalid data. A rebook names the chosen offer, its nominal saving, its approval flags, the reasoning and the rates used. A keep gives the reasoning, the minimum saving and the rates. Invalid data gives the reason the booking could not be reviewed. Two more results exist: needs review, and in a model mode, incomplete analysis. Each result also says what decided it: the rules, the model or the safety check.
 
 ## Model review
 
 ### Needs review
 
-A model-mode result that a person must check before anything changes. The safety check gives it when the model's choice fails a rule, misses the minimum saving or names an unknown offer, or when the model says keep while an eligible offer exists. It shows the rules' view and the model's text side by side.
+A result that a person must check before anything changes. The safety check gives it when the model's choice fails a rule, misses the minimum saving or names an unknown offer, or when the model says keep while an eligible offer exists. The seat check gives it when bookings would rebook onto one offer that cannot seat them all.
+
+### Seat check
+
+The step after every booking has a result. It adds up the passengers of all bookings whose result is a rebook onto the same offer. Bookings that already need review are not counted. If the offer has fewer seats left, every one of those bookings becomes needs review, even when some of them would fit. There is no fair rule for which booking gets the seats, so a person decides. It runs in every mode.
 
 ### Incomplete analysis
 
@@ -62,14 +66,6 @@ The record of one booking's model turns in a model-mode result: the prompt versi
 
 A read-only function the model can ask the code to run in a model mode. There are three: `get_booking`, `search_offers` and `check_offer`. The code binds the booking, so the model never passes a booking reference. The model never runs code, and no tool can change a booking.
 
-### Transcript
-
-The ordered record of one booking's conversation with the model. It holds the booking reference, the number of the next turn, the instructions, the tool specs, the first message, each reply's tool calls and each tool result. It never changes once built. The loop builds a longer copy after each turn. The provider keeps no state, so the transcript is the only state between turns.
-
-### Turn
-
-One call to the model and its reply. A booking's turns count from 1. A reply holds tool calls, final text, a refusal, or a provider failure. A booking gets at most 10 turns.
-
 ### Safety check
 
 The plain-code step after the model's final answer. For a rebook, it checks that the chosen offer is on the booking's route and date, then re-runs the rule checks and the nominal saving for that offer, and checks that the saving still meets the minimum saving. It ignores any amount the model writes. A failing choice, or a keep while an eligible offer exists, becomes a result that a person must review.
@@ -82,4 +78,4 @@ The committed file that holds one real model run for one data set: a header with
 
 ### Stale recording
 
-A recording that no longer matches the inputs or the questions that made it: a header digest differs, a turn's transcript differs, a needed turn is missing, or a recorded turn is never asked for. Replay refuses it with exit code 3 until the owner re-records.
+A recording that no longer matches the inputs or the questions that made it: a header digest differs, a turn's transcript differs, a needed turn is missing, or a recorded turn is never asked for. Replay refuses it with exit code 3. The rules-only mode (`--model none`) still runs, and a new recording needs a paid live run.

@@ -15,6 +15,7 @@ from fare_reshop_agent.reshopping.composition.recording import (
     re_record_command,
     record_environment_review,
     review_recorded,
+    rules_only_command,
 )
 from fare_reshop_agent.reshopping.composition.review import (
     DataSet,
@@ -40,6 +41,7 @@ EXIT_INTERNAL_ERROR = 1
 EXIT_SETUP_ERROR = 2
 EXIT_STALE_RECORDING = 3
 RECORD_NEEDS_OPENAI = "record needs --model openai"
+RE_RECORD_RUNBOOK = "docs/runbooks/re-record.md"
 
 
 class OutputFormat(StrEnum):
@@ -225,10 +227,10 @@ def emit_stale_recording(err: StaleRecording, data_set: DataSet) -> int:
         EXIT_STALE_RECORDING,
         error="stale recording: " + "; ".join(_stale_text(reason) for reason in err.reasons),
         reason=(
-            "the recording answers questions the current data, policy, rates, prompt, tools"
-            " or review rules no longer ask, so its replies cannot be replayed"
+            "the inputs changed since the model run was recorded, so its replies no longer fit;"
+            f" the rules-only run below needs no key, and {RE_RECORD_RUNBOOK} explains re-recording"
         ),
-        fix=re_record_command(data_set),
+        fix=rules_only_command(data_set),
     )
 
 

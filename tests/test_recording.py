@@ -1,7 +1,10 @@
 import dataclasses
 import json
+import os
 import re
 import stat
+import subprocess
+import sys
 from decimal import Decimal
 from pathlib import Path
 
@@ -84,6 +87,15 @@ from sample_data import (
 )
 from scripted_model import RaisingModel, ScriptedModel, call, calls, rebook
 
+SECRET_SENTINEL = "sk-test-sentinel-0001"
+RECORDING_FILE_MODE = 0o644
+SIX_DIGEST_KEYS = {"pnrs", "fares_feed", "policy", "rates", "prompt", "tools"}
+TOP_LEVEL_FILE_KEYS = {"schema_version", "model", "header", "turns"}
+TURN_FILE_KEYS = {"booking", "turn", "transcript_digest", "reply", "usage"}
+COST_SCRIPT = REPO_ROOT / "scripts" / "cost.py"
+COST_PRICES = {"IN_USD_PER_MTOK": "1", "OUT_USD_PER_MTOK": "2"}
+EXIT_BAD_COST_INPUT = 1
+
 
 def record(
     snapshot: ReshopSnapshot, scripts: dict[str, list[ModelReply]]
@@ -160,21 +172,6 @@ def test_mixed_reply_is_stored_with_its_text() -> None:
     assert row.outcome.reason is IncompleteReason.BAD_FINAL_ANSWER
     assert isinstance(row.trace, Trace)
     assert row.trace.tool_calls == ()
-
-
-SECRET_SENTINEL = "sk-test-sentinel-0001"
-
-
-RECORDING_FILE_MODE = 0o644
-
-
-SIX_DIGEST_KEYS = {"pnrs", "fares_feed", "policy", "rates", "prompt", "tools"}
-
-
-TOP_LEVEL_FILE_KEYS = {"schema_version", "model", "header", "turns"}
-
-
-TURN_FILE_KEYS = {"booking", "turn", "transcript_digest", "reply", "usage"}
 
 
 def test_recording_schema_round_trip() -> None:
@@ -361,3 +358,128 @@ def test_live_record_maps_provider_refusal(monkeypatch: pytest.MonkeyPatch) -> N
         )
 
     assert raised.value.error == "OpenAI rejected the API key"
+
+
+def cost_turn(booking: str, input_tokens: int, output_tokens: int) -> dict[str, object]:
+    usage = {"input_tokens": input_tokens, "output_tokens": output_tokens}
+    return {"booking": booking, "usage": usage}
+
+
+def write_cost_inputs(
+    tmp_path: Path, turns: list[dict[str, object]], refs: list[str]
+) -> tuple[Path, Path]:
+    recording = tmp_path / "run.json"
+    recording.write_text(json.dumps({"model": "test-model", "turns": turns}), encoding="utf-8")
+    fixtures = tmp_path / "pnrs.json"
+    fixtures.write_text(json.dumps({"pnrs": [{"pnr": ref} for ref in refs]}), encoding="utf-8")
+    return recording, fixtures
+
+
+def run_cost_script(
+    recording: Path, fixtures: Path, prices: dict[str, str]
+) -> subprocess.CompletedProcess[str]:
+    environ = {name: value for name, value in os.environ.items() if name not in COST_PRICES}
+    return subprocess.run(
+        [sys.executable, "-I", COST_SCRIPT, recording, fixtures],
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**environ, **prices},
+    )
+
+
+def assert_cost_input_rejected(completed: subprocess.CompletedProcess[str], message: str) -> None:
+    assert completed.returncode == EXIT_BAD_COST_INPUT
+    assert completed.stdout == ""
+    assert completed.stderr.startswith("error: ")
+    assert message in completed.stderr
+
+
+def test_cost_line_totals_recorded_turns(tmp_path: Path) -> None:
+    turns = [
+        cost_turn("AAA111", 1000, 100),
+        cost_turn("AAA111", 500, 50),
+        cost_turn("BBB222", 2000, 10),
+    ]
+
+    completed = run_cost_script(
+        *write_cost_inputs(tmp_path, turns, ["AAA111", "BBB222", "CCC333"]), COST_PRICES
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout == (
+        "model=test-model input_tokens=3500 output_tokens=160 total_usd=0.003820"
+        " model_bookings=2 code_settled_bookings=1 per_model_booking_usd=0.001910"
+        " fixture_bookings=3 per_fixture_booking_usd=0.001273\n"
+    )
+
+
+def test_cost_line_rounds_a_tie_to_even(tmp_path: Path) -> None:
+    prices = {"IN_USD_PER_MTOK": "0.5", "OUT_USD_PER_MTOK": "0"}
+
+    completed = run_cost_script(*write_cost_inputs(tmp_path, [cost_turn("A", 5, 0)], ["A"]), prices)
+
+    assert completed.returncode == 0, completed.stderr
+    assert "total_usd=0.000002 " in completed.stdout
+
+
+ONE_TURN = [cost_turn("A", 1, 1)]
+
+
+@pytest.mark.parametrize(
+    ("turns", "refs", "prices", "message"),
+    [
+        (ONE_TURN, ["A"], {"OUT_USD_PER_MTOK": "2"}, "set IN_USD_PER_MTOK"),
+        (ONE_TURN, ["A"], {**COST_PRICES, "IN_USD_PER_MTOK": "abc"}, "plain decimal"),
+        (ONE_TURN, ["A"], {**COST_PRICES, "IN_USD_PER_MTOK": "NaN"}, "plain decimal"),
+        (ONE_TURN, ["A"], {**COST_PRICES, "OUT_USD_PER_MTOK": "-5"}, "plain decimal"),
+        (ONE_TURN, ["A"], {**COST_PRICES, "IN_USD_PER_MTOK": "1_0"}, "plain decimal"),
+        (ONE_TURN, ["A"], {**COST_PRICES, "IN_USD_PER_MTOK": "1" + "0" * 30}, "too large"),
+        ([], ["A"], COST_PRICES, "no turns"),
+        ([*ONE_TURN, cost_turn("B", 1, 1)], ["A"], COST_PRICES, "booking B is not in"),
+        (ONE_TURN, ["A", "A"], COST_PRICES, "appears more than once"),
+        ([cost_turn("A", -1, 1)], ["A"], COST_PRICES, "input_tokens is negative"),
+        ([{"booking": "A"}], ["A"], COST_PRICES, "turn 0: usage is missing"),
+    ],
+    ids=[
+        "missing-price",
+        "price-not-a-number",
+        "price-nan",
+        "price-negative",
+        "price-with-underscore",
+        "price-too-large-to-print",
+        "no-turns",
+        "booking-not-in-fixtures",
+        "duplicate-fixture-booking",
+        "negative-tokens",
+        "turn-without-usage",
+    ],
+)
+def test_cost_script_rejects_bad_input(
+    tmp_path: Path,
+    turns: list[dict[str, object]],
+    refs: list[str],
+    prices: dict[str, str],
+    message: str,
+) -> None:
+    completed = run_cost_script(*write_cost_inputs(tmp_path, turns, refs), prices)
+
+    assert_cost_input_rejected(completed, message)
+
+
+def test_cost_script_rejects_a_missing_recording(tmp_path: Path) -> None:
+    _, fixtures = write_cost_inputs(tmp_path, ONE_TURN, ["A"])
+    absent = tmp_path / "absent.json"
+
+    completed = run_cost_script(absent, fixtures, COST_PRICES)
+
+    assert_cost_input_rejected(completed, f"cannot read {absent}")
+
+
+def test_cost_script_rejects_a_recording_that_is_not_json(tmp_path: Path) -> None:
+    recording, fixtures = write_cost_inputs(tmp_path, ONE_TURN, ["A"])
+    recording.write_text("{not json", encoding="utf-8")
+
+    completed = run_cost_script(recording, fixtures, COST_PRICES)
+
+    assert_cost_input_rejected(completed, f"cannot read {recording}")

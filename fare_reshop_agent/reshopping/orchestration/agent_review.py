@@ -1,3 +1,4 @@
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import ClassVar, assert_never
@@ -9,7 +10,8 @@ from fare_reshop_agent.reshopping.domain.evaluation import (
 )
 from fare_reshop_agent.reshopping.domain.money import Money
 from fare_reshop_agent.reshopping.domain.recommendation import Rebook, Recommendation, Status
-from fare_reshop_agent.reshopping.domain.trip import BookingRef, OfferId
+from fare_reshop_agent.reshopping.domain.shared_seats import SeatShortfall, seat_shortfalls
+from fare_reshop_agent.reshopping.domain.trip import Booking, BookingRef, Offer, OfferId
 from fare_reshop_agent.reshopping.orchestration.booking_loop import (
     Answered,
     IncompleteReason,
@@ -81,8 +83,60 @@ class Incomplete:
         return INCOMPLETE_REASONING[self.reason] + PERSON_REVIEWS
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class SeatConflict:
+    status: ClassVar[Status] = Status.NEEDS_REVIEW
+    proposal: Rebook | ModelRebook
+    shortfall: SeatShortfall
+
+    def __post_init__(self) -> None:
+        if self.proposal.offer_id != self.shortfall.offer_id:
+            raise ValueError(
+                f"{self.proposal.ref} proposes {self.proposal.offer_id},"
+                f" not the short offer {self.shortfall.offer_id}"
+            )
+        if self.proposal.ref not in self.shortfall.refs:
+            raise ValueError(f"{self.proposal.ref} is not one of the bookings short of seats")
+
+    @property
+    def ref(self) -> BookingRef:
+        return self.proposal.ref
+
+    @property
+    def rules(self) -> Rebook:
+        match self.proposal:
+            case Rebook():
+                return self.proposal
+            case ModelRebook():
+                return self.proposal.rules
+            case _:
+                assert_never(self.proposal)
+
+    @property
+    def reasoning(self) -> str:
+        short = self.shortfall
+        return (
+            f"Seat check: {short.offer_id} has {_seats(short.seats_available)} left,"
+            f" and {', '.join(short.refs)} need {short.seats_needed} together."
+            f" A person must choose which booking gets them. {self.proposal.reasoning}"
+        )
+
+
 type ModelOutcome = ModelRebook | NeedsReview | Incomplete
-type AgentOutcome = Recommendation | ModelOutcome
+type AgentOutcome = Recommendation | ModelOutcome | SeatConflict
+
+
+def check_shared_seats(
+    outcomes: Sequence[AgentOutcome], bookings: Iterable[Booking], offers: Iterable[Offer]
+) -> tuple[AgentOutcome, ...]:
+    proposals = {o.ref: o for o in outcomes if isinstance(o, Rebook | ModelRebook)}
+    claims = {ref: proposal.offer_id for ref, proposal in proposals.items()}
+    conflicts = {
+        ref: SeatConflict(proposal=proposals[ref], shortfall=shortfall)
+        for shortfall in seat_shortfalls(claims, bookings, offers)
+        for ref in shortfall.refs
+    }
+    return tuple(conflicts.get(outcome.ref, outcome) for outcome in outcomes)
 
 
 def judge(rules: Rebook, run: LoopRun, tools: BookingTools) -> ModelOutcome:
@@ -163,3 +217,7 @@ def _rules_view(rules: Rebook) -> str:
         f"Rules view: {rules.offer_id} passes every rule and saves {rules.nominal_saving},"
         f" which meets the minimum of {rules.minimum_saving}."
     )
+
+
+def _seats(count: int) -> str:
+    return f"{count} seat" if count == 1 else f"{count} seats"

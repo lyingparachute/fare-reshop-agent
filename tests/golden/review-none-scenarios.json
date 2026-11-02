@@ -6,9 +6,9 @@
   "results": [
     {
       "pnr": "CH8L5F",
-      "status": "REBOOK",
-      "rebook": true,
-      "decided_by": "rules",
+      "status": "NEEDS_REVIEW",
+      "rebook": false,
+      "decided_by": "safety_check",
       "incomplete_reason": null,
       "offer_id": "OF-6401",
       "nominal_saving": {
@@ -17,7 +17,7 @@
       },
       "approval_flags": [],
       "confidence": null,
-      "reasoning": "Rebook to OF-6401. It passes all seven rules and saves 80.00 USD, which meets the minimum of 50.00 USD.",
+      "reasoning": "Seat check: OF-6401 has 3 seats left, and CH8L5F, FD2N8Z need 4 together. A person must choose which booking gets them. Rebook to OF-6401. It passes all seven rules and saves 80.00 USD, which meets the minimum of 50.00 USD.",
       "minimum_saving": {
         "amount": "50.00",
         "currency": "USD"
@@ -75,9 +75,9 @@
     },
     {
       "pnr": "FD2N8Z",
-      "status": "REBOOK",
-      "rebook": true,
-      "decided_by": "rules",
+      "status": "NEEDS_REVIEW",
+      "rebook": false,
+      "decided_by": "safety_check",
       "incomplete_reason": null,
       "offer_id": "OF-6401",
       "nominal_saving": {
@@ -86,7 +86,7 @@
       },
       "approval_flags": [],
       "confidence": null,
-      "reasoning": "Rebook to OF-6401. It passes all seven rules and saves 80.00 USD, which meets the minimum of 50.00 USD.",
+      "reasoning": "Seat check: OF-6401 has 3 seats left, and CH8L5F, FD2N8Z need 4 together. A person must choose which booking gets them. Rebook to OF-6401. It passes all seven rules and saves 80.00 USD, which meets the minimum of 50.00 USD.",
       "minimum_saving": {
         "amount": "50.00",
         "currency": "USD"

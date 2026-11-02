@@ -1,39 +1,45 @@
-# 2. Plain-code rule check before the model, safety check after it
+---
+status: accepted
+date: 2026-11-02
+---
 
-## Status
-
-Accepted
+# ADR 0002: Rules run before the model, and a safety check runs after it
 
 ## Context
 
-The live model mode adds an OpenAI model to the review. A model call costs money and time. A model can also write wrong numbers or pick an offer that breaks a rule. The rule checks and the money math are plain code, and they already decide every booking in the rules-only review. For most bookings, the rules settle the result alone: no offer is eligible, so the answer is keep, or the data is invalid. Only a booking with at least one eligible offer has a real choice to make. That choice can trade a saving against things code does not weigh, such as a schedule change. The model's role is to make that trade-off and explain it.
+Most of a rebooking decision is arithmetic and yes-or-no rules: cabin, bags, refundability, stops, seats, fees, currency. Plain code gets these right every time, for free. A model can get them wrong, and a wrong saving that reaches a person is the worst failure this tool can have.
+
+Some choices have no rule. One offer saves 170 USD and moves the flight by 40 minutes. Another saves 80 USD with no change. Which is better depends on the traveler, and the data says nothing about the traveler. That trade-off, and explaining it to the person who approves the change, is the one part of the job where a model can help.
 
 ## Decision
 
-Plain code runs the rule checks first, for every booking. The model sees only bookings with at least one eligible offer. The model picks one eligible offer or says keep, and writes the rationale and a confidence. The confidence is the model's own estimate, labeled "model estimate, not calibrated".
+Plain code checks every offer against every rule first. A booking with no eligible offer is settled as `KEEP` and never reaches the model.
 
-A safety check in plain code runs after the model's final answer. For a rebook, it checks that the offer is on this booking's route and date. Then it re-runs the rule checks and the nominal saving for that offer. The model's reply has no amount fields, so the code never reads a model figure. A failing choice becomes `NEEDS_REVIEW`, with the reason from the check. A valid choice that is not the highest saving stands as `REBOOK`, and `best_offer_id` names the highest one.
+For a booking with at least one eligible offer, the model picks one of them or says keep. It also writes a short reason and a confidence. Its answer contains no amounts.
 
-A model keep while an eligible offer exists becomes `NEEDS_REVIEW`, never `KEEP`. The rules found a saving that the model turned down. No code can tell whether that trade-off was right, so a person decides.
+A safety check in plain code then re-reads the booking and the chosen offer, and runs the rules and the saving again. The results:
+
+- A valid pick is `REBOOK`. If it is not the biggest saving, `best_offer_id` names the biggest one.
+- A pick that fails a rule, misses the minimum or does not exist is `NEEDS_REVIEW`.
+- A keep while an eligible offer exists is `NEEDS_REVIEW`. The rules found a saving and the model turned it down, so a person decides.
+
+Once every booking has a result, a seat check looks across them. If several bookings would rebook onto one offer and it cannot seat them all, each of them becomes `NEEDS_REVIEW`. This check also runs in the rules-only mode.
 
 ## Consequences
 
-Bookings that the rules settle cost no model call. Each booking that reaches the model costs one extra plain-code evaluation of one offer after the model answers. That cost is small next to a model call, and it needs no network.
+- Bookings the rules settle cost nothing. On the sample data that is 3 of 5.
+- Every amount in a structured field (`nominal_saving`, `minimum_saving`, each offer's saving) comes from code.
+- The model's reasoning is free text, and it can still state a wrong amount ([example in DESIGN.md](../../DESIGN.md#what-the-recorded-runs-show)). The output marks that text with "Model text:", and the structured field is the one to trust.
+- The model cannot turn a rules `KEEP` into a rebook. It can only choose among offers the rules accepted, or send the booking to a person.
+- In both recorded runs, the model picked the offer the rules ranked first. Nothing measures yet whether its picks beat "take the biggest saving".
+- Revisit when a labeled eval set exists. If the model's picks add nothing over the biggest saving, drop it and generate the reason text from the rule results. If free-text fare rules or traveler preferences enter the data, the model's role grows.
 
-A reader can trust every amount in the output, because plain code computed it. Text from the model sits after the label "Model text:", so a reader can tell it from the code's facts. A `REBOOK` from the model passed the same rules and money math as a `REBOOK` from the rules. A reader sees more `NEEDS_REVIEW` rows than with a model that may keep freely. Each such row shows the rules' view and the model's rationale side by side.
+## Alternatives rejected
 
-The model cannot change a result that the rules settled. It can only choose among offers the rules already accepted, or send the booking to a person.
-
-## Alternatives
-
-A model prefilter first. It lost because it drops real savings before the free checks run.
-
-The model on every booking. It lost because it pays for calls that code can settle, and the model could change a rules result.
-
-Code decides and the model only writes text. It lost because it leaves no agent to show.
-
-Trusting the model's numbers. It lost because wrong figures from the model are the core failure mode.
-
-Forcing the highest saving. It lost because it overrides the trade-offs the model is there to weigh.
-
-Letting a model keep stand as `KEEP`. It lost because a missed saving would pass unseen.
+| Alternative | Why not |
+| --- | --- |
+| A model screens bookings before the rules | It can drop real savings, and it pays for work the rules do for free. |
+| The model decides every booking | It pays for calls the rules settle, and it could overturn a correct rules result. |
+| Code always takes the biggest saving, and the model only writes text | It hides the trade-off between a saving and a schedule or carrier change. I kept this as the fallback if an eval shows the model adds nothing. |
+| Trust amounts the model reports | Wrong figures from a model are the failure this design exists to prevent. |
+| Accept the model's keep as the final result | A missed saving would pass with no one looking at it. |

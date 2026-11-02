@@ -7,12 +7,12 @@ from fare_reshop_agent.reshopping.domain.evaluation import OfferEvaluation, Rule
 from fare_reshop_agent.reshopping.domain.exchange_rate import RateUse
 from fare_reshop_agent.reshopping.domain.money import Currency, Money
 from fare_reshop_agent.reshopping.domain.port.reshop_source import RejectedBooking, ReshopSnapshot
-from fare_reshop_agent.reshopping.domain.recommendation import Invalid, Keep, Rebook
+from fare_reshop_agent.reshopping.domain.recommendation import Invalid, Keep, Rebook, Status
 from fare_reshop_agent.reshopping.domain.terms import ReviewPolicy
 from fare_reshop_agent.reshopping.domain.trip import Booking, BookingRef, Cabin, OfferId
 from fare_reshop_agent.reshopping.infrastructure.json_fixtures.source import JsonFixtureSource
 from fare_reshop_agent.reshopping.infrastructure.toml.readers import read_exchange_rates
-from fare_reshop_agent.reshopping.orchestration.agent_review import AgentOutcome
+from fare_reshop_agent.reshopping.orchestration.agent_review import AgentOutcome, SeatConflict
 from fare_reshop_agent.reshopping.orchestration.review import ReviewReport, review_snapshot
 
 from sample_data import (
@@ -271,15 +271,34 @@ def test_scenario_c_failed_refundability_is_not_chosen() -> None:
     assert cheaper.nominal_saving == Money(amount=Decimal("210.00"), currency=USD)
 
 
-def test_scenario_d_shared_flight_recommends_each_booking() -> None:
+def test_scenario_d_bookings_short_of_shared_seats_need_review() -> None:
     report = review_scenarios()
 
     for ref in ("CH8L5F", "FD2N8Z"):
         result = result_for(report, ref)
-        assert isinstance(result, Rebook), ref
-        assert result.offer_id == "OF-6401"
-        assert result.nominal_saving == Money(amount=Decimal("80.00"), currency=USD)
-        assert result_of(evaluation_for(result, "OF-6401"), RuleName.SEATS) is RuleOutcome.PASS
+        assert isinstance(result, SeatConflict), ref
+        assert result.status is Status.NEEDS_REVIEW
+        assert isinstance(result.proposal, Rebook)
+        assert result.proposal.offer_id == "OF-6401"
+        assert result.proposal.nominal_saving == Money(amount=Decimal("80.00"), currency=USD)
+        assert result_of(evaluation_for(result.rules, "OF-6401"), RuleName.SEATS) is (
+            RuleOutcome.PASS
+        )
+        assert result.reasoning.startswith(
+            "Seat check: OF-6401 has 3 seats left, and CH8L5F, FD2N8Z need 4 together."
+            " A person must choose which booking gets them."
+        )
+
+
+def test_bookings_that_fit_together_on_one_offer_both_rebook() -> None:
+    two_seats_each = with_bookings(
+        sample_booking("QX7T2A"),
+        dataclasses.replace(sample_booking("QX7T2A"), ref=BookingRef("QX7T2B")),
+    )
+
+    report = review(two_seats_each)
+
+    assert [type(result) for result in outcomes(report)] == [Rebook, Rebook]
 
 
 def test_scenario_e_seats_failure_keeps() -> None:
@@ -299,8 +318,8 @@ def test_scenario_expected_results_table_matches() -> None:
     ]
 
     assert summary == [
-        ("CH8L5F", "REBOOK", "OF-6401"),
-        ("FD2N8Z", "REBOOK", "OF-6401"),
+        ("CH8L5F", "NEEDS_REVIEW", None),
+        ("FD2N8Z", "NEEDS_REVIEW", None),
         ("MK3V7P", "REBOOK", "OF-6101"),
         ("RD9Q2X", "REBOOK", "OF-6201"),
         ("WJ6T4N", "REBOOK", "OF-6302"),

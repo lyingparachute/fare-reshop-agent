@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 724 360" width="724" height="360" role="img" aria-labelledby="t2 d2">
+<title id="t2">The old ticket's change fee decides the saving</title>
+<desc id="d2">Two one-passenger bookings in USD. QX7T2A: old fare 480, new fare 300, change fee 100, saving 80, above the 50 minimum, so rebook. HB6W9E: old fare 260, new fare 200, change fee 150, saving minus 90, so keep, even though the new fare is 60 cheaper.</desc>
+<style>
+text{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;fill:#0b0b0b}
+.sec{fill:#52514e}
+.grid{stroke:#d6d5d0}
+.base{stroke:#52514e}
+.muted{fill:#b9b8b2}
+.blue{fill:#2a78d6}
+.glyph{fill:#ffffff;font-weight:700}
+.pass{fill:#0ca30c}
+.fail{fill:#d03b3b}
+.min{stroke:#eb6834}
+.mintext{fill:#b8461a}
+@media (prefers-color-scheme: dark){
+ text{fill:#f0efec}
+ .sec{fill:#c3c2b7}
+ .grid{stroke:#3a3a37}
+ .base{stroke:#c3c2b7}
+ .muted{fill:#5d5c58}
+ .blue{fill:#3987e5}
+ .glyph{fill:#ffffff}
+ .min{stroke:#d95926}
+ .mintext{fill:#f08c62}
+}
+</style>
+<text x="0" y="20" font-size="15" font-weight="600">The old ticket's change fee decides the saving</text>
+<text x="0" y="40" font-size="12" class="sec">USD per passenger. Both offers are cheaper than the ticket. Only one is worth the change.</text>
+<line x1="534" x2="562" y1="54" y2="54" class="min" stroke-width="2" stroke-dasharray="5 4"/>
+<text x="568" y="58" font-size="12" class="sec">minimum saving, 50</text>
+<line x1="44" x2="714" y1="290.0" y2="290.0" class="grid" stroke-width="1"/>
+<text x="36" y="294.0" font-size="11" class="sec" text-anchor="end">-100</text>
+<line x1="44" x2="714" y1="253.33333333333334" y2="253.33333333333334" class="base" stroke-width="1"/>
+<text x="36" y="257.33333333333337" font-size="11" class="sec" text-anchor="end">0</text>
+<line x1="44" x2="714" y1="216.66666666666666" y2="216.66666666666666" class="grid" stroke-width="1"/>
+<text x="36" y="220.66666666666666" font-size="11" class="sec" text-anchor="end">100</text>
+<line x1="44" x2="714" y1="180.0" y2="180.0" class="grid" stroke-width="1"/>
+<text x="36" y="184.0" font-size="11" class="sec" text-anchor="end">200</text>
+<line x1="44" x2="714" y1="143.33333333333331" y2="143.33333333333331" class="grid" stroke-width="1"/>
+<text x="36" y="147.33333333333331" font-size="11" class="sec" text-anchor="end">300</text>
+<line x1="44" x2="714" y1="106.66666666666666" y2="106.66666666666666" class="grid" stroke-width="1"/>
+<text x="36" y="110.66666666666666" font-size="11" class="sec" text-anchor="end">400</text>
+<line x1="44" x2="714" y1="70.0" y2="70.0" class="grid" stroke-width="1"/>
+<text x="36" y="74.0" font-size="11" class="sec" text-anchor="end">500</text>
+<text x="54" y="58" font-size="13" font-weight="600">QX7T2A</text>
+<g><title>QX7T2A old fare: 480 USD</title><rect x="54" y="77.33333333333333" width="46" height="176.0" rx="4" class="muted"/></g>
+<text x="77.0" y="71.33333333333333" font-size="11" text-anchor="middle">480</text>
+<text x="77.0" y="308" font-size="11" class="sec" text-anchor="middle">old fare</text>
+<g><title>QX7T2A new fare: -300 USD</title><rect x="130" y="77.33333333333333" width="46" height="109.99999999999999" rx="4" class="muted"/></g>
+<text x="153.0" y="71.33333333333333" font-size="11" text-anchor="middle">-300</text>
+<text x="153.0" y="308" font-size="11" class="sec" text-anchor="middle">new fare</text>
+<g><title>QX7T2A change fee: -100 USD</title><rect x="206" y="187.33333333333331" width="46" height="36.666666666666686" rx="4" class="muted"/></g>
+<text x="229.0" y="181.33333333333331" font-size="11" text-anchor="middle">-100</text>
+<text x="229.0" y="308" font-size="11" class="sec" text-anchor="middle">change fee</text>
+<g><title>QX7T2A saving: +80 USD</title><rect x="282" y="224.0" width="46" height="29.333333333333343" rx="4" class="blue"/></g>
+<text x="305.0" y="218.0" font-size="11" text-anchor="middle">+80</text>
+<text x="305.0" y="308" font-size="11" class="sec" text-anchor="middle">saving</text>
+<line x1="50" x2="332" y1="235.0" y2="235.0" class="min" stroke-width="2" stroke-dasharray="5 4"/>
+<text x="54" y="334" font-size="12" font-weight="600">80.00 USD saving: REBOOK</text>
+<text x="384" y="58" font-size="13" font-weight="600">HB6W9E</text>
+<g><title>HB6W9E old fare: 260 USD</title><rect x="384" y="158.0" width="46" height="95.33333333333334" rx="4" class="muted"/></g>
+<text x="407.0" y="152.0" font-size="11" text-anchor="middle">260</text>
+<text x="407.0" y="308" font-size="11" class="sec" text-anchor="middle">old fare</text>
+<g><title>HB6W9E new fare: -200 USD</title><rect x="460" y="158.0" width="46" height="73.33333333333334" rx="4" class="muted"/></g>
+<text x="483.0" y="152.0" font-size="11" text-anchor="middle">-200</text>
+<text x="483.0" y="308" font-size="11" class="sec" text-anchor="middle">new fare</text>
+<g><title>HB6W9E change fee: -150 USD</title><rect x="536" y="231.33333333333334" width="46" height="55.00000000000003" rx="4" class="muted"/></g>
+<text x="559.0" y="225.33333333333334" font-size="11" text-anchor="middle">-150</text>
+<text x="559.0" y="308" font-size="11" class="sec" text-anchor="middle">change fee</text>
+<g><title>HB6W9E saving: -90 USD</title><rect x="612" y="253.33333333333334" width="46" height="33.00000000000003" rx="4" class="blue"/></g>
+<text x="635.0" y="273.83333333333337" font-size="11" text-anchor="middle" class="glyph">-90</text>
+<text x="635.0" y="308" font-size="11" class="sec" text-anchor="middle">saving</text>
+<line x1="380" x2="662" y1="235.0" y2="235.0" class="min" stroke-width="2" stroke-dasharray="5 4"/>
+<text x="384" y="334" font-size="12" font-weight="600">-90.00 USD saving: KEEP</text>
+</svg>

@@ -23,7 +23,11 @@ from fare_reshop_agent.reshopping.domain.recommendation import (
 from fare_reshop_agent.reshopping.domain.terms import BookingTerms, ReviewPolicy, booking_terms
 from fare_reshop_agent.reshopping.domain.trip import Booking, offers_on_route
 from fare_reshop_agent.reshopping.orchestration.agent_model import AgentModel, Prompt
-from fare_reshop_agent.reshopping.orchestration.agent_review import AgentOutcome, judge
+from fare_reshop_agent.reshopping.orchestration.agent_review import (
+    AgentOutcome,
+    check_shared_seats,
+    judge,
+)
 from fare_reshop_agent.reshopping.orchestration.booking_loop import Trace, run_booking_loop
 from fare_reshop_agent.reshopping.orchestration.booking_tools import BookingTools
 from fare_reshop_agent.reshopping.orchestration.replay import RecordedTrace
@@ -130,9 +134,15 @@ def _terms(
 
 
 def _report(mode: ReviewMode, snapshot: ReshopSnapshot, rows: Iterable[ReviewRow]) -> ReviewReport:
+    ordered = sorted(rows, key=lambda row: row.outcome.ref)
+    bookings = (b for b in snapshot.bookings if isinstance(b, Booking))
+    checked = check_shared_seats([row.outcome for row in ordered], bookings, snapshot.offers)
     return ReviewReport(
         mode=mode,
         as_of=snapshot.captured_at,
         data_issues=snapshot.data_issues,
-        results=tuple(sorted(rows, key=lambda row: row.outcome.ref)),
+        results=tuple(
+            ReviewRow(outcome=outcome, trace=row.trace)
+            for row, outcome in zip(ordered, checked, strict=True)
+        ),
     )

@@ -81,6 +81,10 @@ def recording_path(data_set: DataSet) -> Path:
             assert_never(data_set)
 
 
+def rules_only_command(data_set: DataSet) -> str:
+    return f"uv run fare-reshop review --data {data_set.value} --model none"
+
+
 def re_record_command(data_set: DataSet) -> str:
     return (
         "uv run --env-file .env.local --extra live fare-reshop review"
@@ -225,7 +229,7 @@ def review_recorded(data_set: DataSet) -> ReviewReport:
 
 
 def recording_setup_error(err: RecordingFileError, data_set: DataSet) -> SetupError:
-    fix = f"uv run fare-reshop review --data {data_set.value} --model none"
+    fix = rules_only_command(data_set)
     match err.problem:
         case FileProblem.MISSING:
             return SetupError(
