@@ -1,0 +1,40 @@
+[project]
+name = "fare-reshop-agent"
+version = "0.1.0"
+description = "Compares booked flights with fares on sale now and recommends rebook or keep."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+fare-reshop = "fare_reshop_agent.reshopping.cli.entry:main"
+
+[build-system]
+requires = ["uv_build>=0.13.5,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "fare_reshop_agent"
+module-root = ""
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "PT", "C4", "PL", "TRY", "ANN"]
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+files = ["fare_reshop_agent", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "mypy>=2.4.1",
+    "pytest>=9.2.0",
+    "ruff>=0.17.3",
+]
