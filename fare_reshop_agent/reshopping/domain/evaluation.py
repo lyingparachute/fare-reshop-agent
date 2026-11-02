@@ -60,6 +60,10 @@ class OfferEvaluation:
     def failed_rules(self) -> tuple[RuleName, ...]:
         return tuple(r.rule for r in self.rules if r.outcome is RuleOutcome.FAIL)
 
+    def is_eligible(self, minimum: Money) -> bool:
+        saving = self.nominal_saving
+        return not self.failed_rules and isinstance(saving, Money) and saving >= minimum
+
 
 def evaluate_offer(terms: BookingTerms, offer: Offer, rates: ExchangeRates) -> OfferEvaluation:
     booking = terms.booking

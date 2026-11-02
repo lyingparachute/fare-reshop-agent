@@ -134,6 +134,12 @@ def _render_review(mode: ReviewMode, data_set: DataSet, output_format: OutputFor
     match mode:
         case ReviewMode.NONE:
             report = review_without_model(data_set)
+        case ReviewMode.OPENAI:
+            raise SetupError(
+                error="--model openai is not available in this build",
+                reason="the live model path is not wired to the command line yet",
+                fix="see `uv run fare-reshop --help`",
+            )
         case _:
             assert_never(mode)
     match output_format:

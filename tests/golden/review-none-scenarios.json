@@ -1,0 +1,519 @@
+{
+  "schema_version": 1,
+  "mode": "none",
+  "as_of": "2026-07-08T09:00:00Z",
+  "data_issues": [],
+  "results": [
+    {
+      "pnr": "CH8L5F",
+      "status": "REBOOK",
+      "rebook": true,
+      "decided_by": "rules",
+      "incomplete_reason": null,
+      "offer_id": "OF-6401",
+      "nominal_saving": {
+        "amount": "80.00",
+        "currency": "USD"
+      },
+      "approval_flags": [],
+      "confidence": null,
+      "reasoning": "Rebook to OF-6401. It passes all seven rules and saves 80.00 USD, which meets the minimum of 50.00 USD.",
+      "minimum_saving": {
+        "amount": "50.00",
+        "currency": "USD"
+      },
+      "exchange_rates": [],
+      "invalid_reason": null,
+      "evaluations": [
+        {
+          "offer_id": "OF-6401",
+          "rules": [
+            {
+              "rule": "cabin",
+              "result": "PASS",
+              "reason": "offer cabin ECONOMY is not below the booked cabin ECONOMY"
+            },
+            {
+              "rule": "refundable",
+              "result": "PASS",
+              "reason": "the offer keeps the booking's refund right"
+            },
+            {
+              "rule": "bags",
+              "result": "PASS",
+              "reason": "no fewer checked bags: offer includes 1, booking includes 1"
+            },
+            {
+              "rule": "stops",
+              "result": "PASS",
+              "reason": "no more stops: offer has 0, booking has 0"
+            },
+            {
+              "rule": "seats",
+              "result": "PASS",
+              "reason": "enough seats: 3 seats available, 2 needed"
+            },
+            {
+              "rule": "future_change_fee",
+              "result": "PASS",
+              "reason": "no higher future change fee: offer 60.00 USD, booking 60.00 USD"
+            },
+            {
+              "rule": "exchange_rate",
+              "result": "PASS",
+              "reason": "every amount is in the booking's currency or has a rate"
+            }
+          ],
+          "nominal_saving": {
+            "amount": "80.00",
+            "currency": "USD"
+          },
+          "exchange_rates": [],
+          "approval_flags": []
+        }
+      ]
+    },
+    {
+      "pnr": "FD2N8Z",
+      "status": "REBOOK",
+      "rebook": true,
+      "decided_by": "rules",
+      "incomplete_reason": null,
+      "offer_id": "OF-6401",
+      "nominal_saving": {
+        "amount": "80.00",
+        "currency": "USD"
+      },
+      "approval_flags": [],
+      "confidence": null,
+      "reasoning": "Rebook to OF-6401. It passes all seven rules and saves 80.00 USD, which meets the minimum of 50.00 USD.",
+      "minimum_saving": {
+        "amount": "50.00",
+        "currency": "USD"
+      },
+      "exchange_rates": [],
+      "invalid_reason": null,
+      "evaluations": [
+        {
+          "offer_id": "OF-6401",
+          "rules": [
+            {
+              "rule": "cabin",
+              "result": "PASS",
+              "reason": "offer cabin ECONOMY is not below the booked cabin ECONOMY"
+            },
+            {
+              "rule": "refundable",
+              "result": "PASS",
+              "reason": "the offer keeps the booking's refund right"
+            },
+            {
+              "rule": "bags",
+              "result": "PASS",
+              "reason": "no fewer checked bags: offer includes 1, booking includes 1"
+            },
+            {
+              "rule": "stops",
+              "result": "PASS",
+              "reason": "no more stops: offer has 0, booking has 0"
+            },
+            {
+              "rule": "seats",
+              "result": "PASS",
+              "reason": "enough seats: 3 seats available, 2 needed"
+            },
+            {
+              "rule": "future_change_fee",
+              "result": "PASS",
+              "reason": "no higher future change fee: offer 60.00 USD, booking 60.00 USD"
+            },
+            {
+              "rule": "exchange_rate",
+              "result": "PASS",
+              "reason": "every amount is in the booking's currency or has a rate"
+            }
+          ],
+          "nominal_saving": {
+            "amount": "80.00",
+            "currency": "USD"
+          },
+          "exchange_rates": [],
+          "approval_flags": []
+        }
+      ]
+    },
+    {
+      "pnr": "MK3V7P",
+      "status": "REBOOK",
+      "rebook": true,
+      "decided_by": "rules",
+      "incomplete_reason": null,
+      "offer_id": "OF-6101",
+      "nominal_saving": {
+        "amount": "170.00",
+        "currency": "USD"
+      },
+      "approval_flags": [
+        "schedule_change"
+      ],
+      "confidence": null,
+      "reasoning": "Rebook to OF-6101. It passes all seven rules and saves 170.00 USD, which meets the minimum of 50.00 USD.",
+      "minimum_saving": {
+        "amount": "50.00",
+        "currency": "USD"
+      },
+      "exchange_rates": [],
+      "invalid_reason": null,
+      "evaluations": [
+        {
+          "offer_id": "OF-6101",
+          "rules": [
+            {
+              "rule": "cabin",
+              "result": "PASS",
+              "reason": "offer cabin ECONOMY is not below the booked cabin ECONOMY"
+            },
+            {
+              "rule": "refundable",
+              "result": "PASS",
+              "reason": "the offer keeps the booking's refund right"
+            },
+            {
+              "rule": "bags",
+              "result": "PASS",
+              "reason": "no fewer checked bags: offer includes 1, booking includes 1"
+            },
+            {
+              "rule": "stops",
+              "result": "PASS",
+              "reason": "no more stops: offer has 0, booking has 0"
+            },
+            {
+              "rule": "seats",
+              "result": "PASS",
+              "reason": "enough seats: 6 seats available, 1 needed"
+            },
+            {
+              "rule": "future_change_fee",
+              "result": "PASS",
+              "reason": "no higher future change fee: offer 80.00 USD, booking 80.00 USD"
+            },
+            {
+              "rule": "exchange_rate",
+              "result": "PASS",
+              "reason": "every amount is in the booking's currency or has a rate"
+            }
+          ],
+          "nominal_saving": {
+            "amount": "170.00",
+            "currency": "USD"
+          },
+          "exchange_rates": [],
+          "approval_flags": [
+            "schedule_change"
+          ]
+        },
+        {
+          "offer_id": "OF-6102",
+          "rules": [
+            {
+              "rule": "cabin",
+              "result": "PASS",
+              "reason": "offer cabin ECONOMY is not below the booked cabin ECONOMY"
+            },
+            {
+              "rule": "refundable",
+              "result": "PASS",
+              "reason": "the offer keeps the booking's refund right"
+            },
+            {
+              "rule": "bags",
+              "result": "PASS",
+              "reason": "no fewer checked bags: offer includes 1, booking includes 1"
+            },
+            {
+              "rule": "stops",
+              "result": "PASS",
+              "reason": "no more stops: offer has 0, booking has 0"
+            },
+            {
+              "rule": "seats",
+              "result": "PASS",
+              "reason": "enough seats: 6 seats available, 1 needed"
+            },
+            {
+              "rule": "future_change_fee",
+              "result": "PASS",
+              "reason": "no higher future change fee: offer 80.00 USD, booking 80.00 USD"
+            },
+            {
+              "rule": "exchange_rate",
+              "result": "PASS",
+              "reason": "every amount is in the booking's currency or has a rate"
+            }
+          ],
+          "nominal_saving": {
+            "amount": "80.00",
+            "currency": "USD"
+          },
+          "exchange_rates": [],
+          "approval_flags": []
+        }
+      ]
+    },
+    {
+      "pnr": "RD9Q2X",
+      "status": "REBOOK",
+      "rebook": true,
+      "decided_by": "rules",
+      "incomplete_reason": null,
+      "offer_id": "OF-6201",
+      "nominal_saving": {
+        "amount": "75.00",
+        "currency": "USD"
+      },
+      "approval_flags": [
+        "carrier_change"
+      ],
+      "confidence": null,
+      "reasoning": "Rebook to OF-6201. It passes all seven rules and saves 75.00 USD, which meets the minimum of 50.00 USD.",
+      "minimum_saving": {
+        "amount": "50.00",
+        "currency": "USD"
+      },
+      "exchange_rates": [],
+      "invalid_reason": null,
+      "evaluations": [
+        {
+          "offer_id": "OF-6201",
+          "rules": [
+            {
+              "rule": "cabin",
+              "result": "PASS",
+              "reason": "offer cabin ECONOMY is not below the booked cabin ECONOMY"
+            },
+            {
+              "rule": "refundable",
+              "result": "PASS",
+              "reason": "the offer keeps the booking's refund right"
+            },
+            {
+              "rule": "bags",
+              "result": "PASS",
+              "reason": "no fewer checked bags: offer includes 1, booking includes 1"
+            },
+            {
+              "rule": "stops",
+              "result": "PASS",
+              "reason": "no more stops: offer has 0, booking has 0"
+            },
+            {
+              "rule": "seats",
+              "result": "PASS",
+              "reason": "enough seats: 4 seats available, 1 needed"
+            },
+            {
+              "rule": "future_change_fee",
+              "result": "PASS",
+              "reason": "no higher future change fee: offer 75.00 USD, booking 75.00 USD"
+            },
+            {
+              "rule": "exchange_rate",
+              "result": "PASS",
+              "reason": "every amount is in the booking's currency or has a rate"
+            }
+          ],
+          "nominal_saving": {
+            "amount": "75.00",
+            "currency": "USD"
+          },
+          "exchange_rates": [],
+          "approval_flags": [
+            "carrier_change"
+          ]
+        }
+      ]
+    },
+    {
+      "pnr": "WJ6T4N",
+      "status": "REBOOK",
+      "rebook": true,
+      "decided_by": "rules",
+      "incomplete_reason": null,
+      "offer_id": "OF-6302",
+      "nominal_saving": {
+        "amount": "60.00",
+        "currency": "USD"
+      },
+      "approval_flags": [],
+      "confidence": null,
+      "reasoning": "Rebook to OF-6302. It passes all seven rules and saves 60.00 USD, which meets the minimum of 50.00 USD.",
+      "minimum_saving": {
+        "amount": "50.00",
+        "currency": "USD"
+      },
+      "exchange_rates": [],
+      "invalid_reason": null,
+      "evaluations": [
+        {
+          "offer_id": "OF-6301",
+          "rules": [
+            {
+              "rule": "cabin",
+              "result": "PASS",
+              "reason": "offer cabin ECONOMY is not below the booked cabin ECONOMY"
+            },
+            {
+              "rule": "refundable",
+              "result": "FAIL",
+              "reason": "the booking is refundable and the offer is not"
+            },
+            {
+              "rule": "bags",
+              "result": "PASS",
+              "reason": "no fewer checked bags: offer includes 1, booking includes 1"
+            },
+            {
+              "rule": "stops",
+              "result": "PASS",
+              "reason": "no more stops: offer has 0, booking has 0"
+            },
+            {
+              "rule": "seats",
+              "result": "PASS",
+              "reason": "enough seats: 5 seats available, 1 needed"
+            },
+            {
+              "rule": "future_change_fee",
+              "result": "PASS",
+              "reason": "no higher future change fee: offer 90.00 USD, booking 90.00 USD"
+            },
+            {
+              "rule": "exchange_rate",
+              "result": "PASS",
+              "reason": "every amount is in the booking's currency or has a rate"
+            }
+          ],
+          "nominal_saving": {
+            "amount": "210.00",
+            "currency": "USD"
+          },
+          "exchange_rates": [],
+          "approval_flags": []
+        },
+        {
+          "offer_id": "OF-6302",
+          "rules": [
+            {
+              "rule": "cabin",
+              "result": "PASS",
+              "reason": "offer cabin ECONOMY is not below the booked cabin ECONOMY"
+            },
+            {
+              "rule": "refundable",
+              "result": "PASS",
+              "reason": "the offer keeps the booking's refund right"
+            },
+            {
+              "rule": "bags",
+              "result": "PASS",
+              "reason": "no fewer checked bags: offer includes 1, booking includes 1"
+            },
+            {
+              "rule": "stops",
+              "result": "PASS",
+              "reason": "no more stops: offer has 0, booking has 0"
+            },
+            {
+              "rule": "seats",
+              "result": "PASS",
+              "reason": "enough seats: 5 seats available, 1 needed"
+            },
+            {
+              "rule": "future_change_fee",
+              "result": "PASS",
+              "reason": "no higher future change fee: offer 90.00 USD, booking 90.00 USD"
+            },
+            {
+              "rule": "exchange_rate",
+              "result": "PASS",
+              "reason": "every amount is in the booking's currency or has a rate"
+            }
+          ],
+          "nominal_saving": {
+            "amount": "60.00",
+            "currency": "USD"
+          },
+          "exchange_rates": [],
+          "approval_flags": []
+        }
+      ]
+    },
+    {
+      "pnr": "YU6EG1",
+      "status": "KEEP",
+      "rebook": false,
+      "decided_by": "rules",
+      "incomplete_reason": null,
+      "offer_id": null,
+      "nominal_saving": null,
+      "approval_flags": [],
+      "confidence": null,
+      "reasoning": "No offer passes every rule. OF-6501 fails: seats.",
+      "minimum_saving": {
+        "amount": "50.00",
+        "currency": "USD"
+      },
+      "exchange_rates": [],
+      "invalid_reason": null,
+      "evaluations": [
+        {
+          "offer_id": "OF-6501",
+          "rules": [
+            {
+              "rule": "cabin",
+              "result": "PASS",
+              "reason": "offer cabin ECONOMY is not below the booked cabin ECONOMY"
+            },
+            {
+              "rule": "refundable",
+              "result": "PASS",
+              "reason": "the offer keeps the booking's refund right"
+            },
+            {
+              "rule": "bags",
+              "result": "PASS",
+              "reason": "no fewer checked bags: offer includes 1, booking includes 1"
+            },
+            {
+              "rule": "stops",
+              "result": "PASS",
+              "reason": "no more stops: offer has 0, booking has 0"
+            },
+            {
+              "rule": "seats",
+              "result": "FAIL",
+              "reason": "too few seats: 2 seats available, 3 needed"
+            },
+            {
+              "rule": "future_change_fee",
+              "result": "PASS",
+              "reason": "no higher future change fee: offer 40.00 USD, booking 40.00 USD"
+            },
+            {
+              "rule": "exchange_rate",
+              "result": "PASS",
+              "reason": "every amount is in the booking's currency or has a rate"
+            }
+          ],
+          "nominal_saving": {
+            "amount": "60.00",
+            "currency": "USD"
+          },
+          "exchange_rates": [],
+          "approval_flags": []
+        }
+      ]
+    }
+  ]
+}

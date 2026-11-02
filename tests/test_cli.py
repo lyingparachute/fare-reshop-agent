@@ -486,3 +486,12 @@ def test_unknown_data_set_exits_2_three_lines() -> None:
         "reason: only the configured data sets exist: sample, scenarios",
         "fix: use --data sample or --data scenarios",
     ]
+
+
+@pytest.mark.parametrize("data_set", ["sample", "scenarios"])
+def test_rules_only_output_matches_golden_file(data_set: str) -> None:
+    golden = REPO_ROOT / "tests" / "golden" / f"review-none-{data_set}.json"
+
+    completed = run_cli("review", "--model", "none", "--data", data_set)
+
+    assert completed.stdout == golden.read_text(encoding="utf-8")

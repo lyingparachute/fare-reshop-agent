@@ -7,8 +7,10 @@ from pathlib import Path
 from fare_reshop_agent.reshopping.domain.evaluation import OfferEvaluation, RuleName, RuleOutcome
 from fare_reshop_agent.reshopping.domain.exchange_rate import ExchangeRate, NoRate
 from fare_reshop_agent.reshopping.domain.money import Currency, Money
+from fare_reshop_agent.reshopping.domain.port.reshop_source import RejectedBooking, ReshopSnapshot
 from fare_reshop_agent.reshopping.domain.terms import ReviewPolicy
 from fare_reshop_agent.reshopping.domain.trip import Booking, BookingRef, Cabin, Offer, OfferId
+from fare_reshop_agent.reshopping.infrastructure.json_fixtures.source import JsonFixtureSource
 
 USD = Currency(code="USD")
 EUR = Currency(code="EUR")
@@ -48,6 +50,7 @@ QX7T2A = Booking(
     departure=datetime(2026, 8, 15, 8, 0),
     arrival=datetime(2026, 8, 15, 11, 20),
     carrier="AA",
+    flight_number="AA118",
     stops=0,
     cabin=Cabin.ECONOMY,
     price_per_passenger=usd("480.00"),
@@ -64,6 +67,7 @@ OF_1001 = Offer(
     departure=datetime(2026, 8, 15, 8, 0),
     arrival=datetime(2026, 8, 15, 11, 20),
     carrier="AA",
+    flight_number="AA118",
     stops=0,
     cabin=Cabin.ECONOMY,
     price=usd("300.00"),
@@ -110,3 +114,23 @@ def all_pass(evaluation: OfferEvaluation) -> bool:
 
 REPO_FIXTURES = Path(__file__).resolve().parent.parent / "fixtures"
 REPO_CONFIG = REPO_FIXTURES.parent / "config"
+
+
+class InMemorySource:
+    def __init__(self, snapshot: ReshopSnapshot) -> None:
+        self._snapshot = snapshot
+
+    def read_snapshot(self) -> ReshopSnapshot:
+        return self._snapshot
+
+
+def sample() -> ReshopSnapshot:
+    return JsonFixtureSource(REPO_FIXTURES).read_snapshot()
+
+
+def sample_booking(ref: str) -> Booking:
+    return next(b for b in sample().bookings if isinstance(b, Booking) and b.ref == ref)
+
+
+def with_bookings(*bookings: Booking | RejectedBooking) -> ReshopSnapshot:
+    return dataclasses.replace(sample(), bookings=bookings)

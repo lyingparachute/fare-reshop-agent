@@ -7,11 +7,12 @@ from fare_reshop_agent.reshopping.domain.evaluation import OfferEvaluation, Rule
 from fare_reshop_agent.reshopping.domain.exchange_rate import RateUse
 from fare_reshop_agent.reshopping.domain.money import Currency, Money
 from fare_reshop_agent.reshopping.domain.port.reshop_source import RejectedBooking, ReshopSnapshot
-from fare_reshop_agent.reshopping.domain.recommendation import Invalid, Keep, Rebook, Recommendation
+from fare_reshop_agent.reshopping.domain.recommendation import Invalid, Keep, Rebook
 from fare_reshop_agent.reshopping.domain.terms import ReviewPolicy
 from fare_reshop_agent.reshopping.domain.trip import Booking, BookingRef, Cabin, OfferId
 from fare_reshop_agent.reshopping.infrastructure.json_fixtures.source import JsonFixtureSource
 from fare_reshop_agent.reshopping.infrastructure.toml.readers import read_exchange_rates
+from fare_reshop_agent.reshopping.orchestration.agent_review import AgentOutcome
 from fare_reshop_agent.reshopping.orchestration.review import ReviewReport, review_snapshot
 
 from sample_data import (
@@ -23,38 +24,26 @@ from sample_data import (
     REPO_CONFIG,
     REPO_FIXTURES,
     USD,
+    InMemorySource,
     all_pass,
     result_of,
+    sample,
+    sample_booking,
     usd,
+    with_bookings,
 )
-
-
-class InMemorySource:
-    def __init__(self, snapshot: ReshopSnapshot) -> None:
-        self._snapshot = snapshot
-
-    def read_snapshot(self) -> ReshopSnapshot:
-        return self._snapshot
-
-
-def sample() -> ReshopSnapshot:
-    return JsonFixtureSource(REPO_FIXTURES).read_snapshot()
-
-
-def sample_booking(ref: str) -> Booking:
-    return next(b for b in sample().bookings if isinstance(b, Booking) and b.ref == ref)
 
 
 def review(snapshot: ReshopSnapshot) -> ReviewReport:
     return review_snapshot(InMemorySource(snapshot), DEMO_RATES, POLICY)
 
 
-def result_for(report: ReviewReport, ref: str) -> Recommendation:
-    return next(result for result in report.results if result.ref == ref)
+def outcomes(report: ReviewReport) -> list[AgentOutcome]:
+    return [row.outcome for row in report.results]
 
 
-def with_bookings(*bookings: Booking | RejectedBooking) -> ReshopSnapshot:
-    return dataclasses.replace(sample(), bookings=bookings)
+def result_for(report: ReviewReport, ref: str) -> AgentOutcome:
+    return next(result for result in outcomes(report) if result.ref == ref)
 
 
 def evaluation_for(result: Rebook | Keep, offer_id: str) -> OfferEvaluation:
@@ -79,7 +68,7 @@ def test_sample_data_matches_expected_results() -> None:
             result.offer_id if isinstance(result, Rebook) else None,
             str(result.nominal_saving) if isinstance(result, Rebook) else None,
         )
-        for result in report.results
+        for result in outcomes(report)
     ]
     assert summary == [
         ("HB6W9E", "Keep", None, None),
@@ -200,7 +189,7 @@ def test_invalid_booking_does_not_stop_other_bookings() -> None:
 
     report = review(with_bookings(rejected, *others))
 
-    assert [(r.ref, type(r).__name__) for r in report.results] == [
+    assert [(r.ref, type(r).__name__) for r in outcomes(report)] == [
         ("HB6W9E", "Keep"),
         ("LM9P4C", "Keep"),
         ("QX7T2A", "Invalid"),
@@ -233,7 +222,7 @@ def test_offer_in_lower_cabin_is_not_chosen_even_if_cheapest() -> None:
 def test_results_are_sorted_by_pnr() -> None:
     report = review(with_bookings(*reversed(sample().bookings)))
 
-    assert [result.ref for result in report.results] == [
+    assert [result.ref for result in outcomes(report)] == [
         "HB6W9E",
         "LM9P4C",
         "QX7T2A",
@@ -306,7 +295,7 @@ def test_scenario_e_seats_failure_keeps() -> None:
 def test_scenario_expected_results_table_matches() -> None:
     summary = [
         (result.ref, result.status.value, result.offer_id if isinstance(result, Rebook) else None)
-        for result in review_scenarios().results
+        for result in outcomes(review_scenarios())
     ]
 
     assert summary == [

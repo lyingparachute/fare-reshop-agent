@@ -13,11 +13,15 @@ from fare_reshop_agent.reshopping.domain.trip import BookingRef, OfferId
 class Status(StrEnum):
     REBOOK = "REBOOK"
     KEEP = "KEEP"
+    NEEDS_REVIEW = "NEEDS_REVIEW"
+    INCOMPLETE_ANALYSIS = "INCOMPLETE_ANALYSIS"
     INVALID_DATA = "INVALID_DATA"
 
 
 class DecidedBy(StrEnum):
     RULES = "rules"
+    MODEL = "model"
+    SAFETY_CHECK = "safety_check"
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -57,7 +61,7 @@ def decide(terms: BookingTerms, evaluations: Sequence[OfferEvaluation]) -> Reboo
     ordered = tuple(sorted(evaluations, key=lambda evaluation: evaluation.offer_id))
     minimum = terms.minimum.money
     passing = _by_highest_saving(e for e in ordered if not e.failed_rules)
-    eligible = [(e, saving) for e, saving in passing if saving >= minimum]
+    eligible = [(e, saving) for e, saving in passing if e.is_eligible(minimum)]
     if eligible:
         chosen, saving = eligible[0]
         return Rebook(

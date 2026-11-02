@@ -9,14 +9,14 @@ This ExecPlan is a living document. Progress, Surprises & Discoveries, Decision 
 - [x] (2026-11-02) Round 3 findings applied in this revision. Status is `ready`.
 - [x] (2026-11-02) Owner confirmed Q1: `.env.example` keeps `OPENAI_MODEL=gpt-6-luna`; the owner's `.env.local` sets the value for local runs. The code sets no default for the model.
 - [x] (2026-11-02) Rules-only review landed and its names were checked against the source: `offers_on_route` and `review_booking` do not exist as public names, the composition entry does not take an environment or return an exit code, the table has no FLAGS column, and `ReviewRow` is not a Rules-only name, so this revision applies those differences, which Milestones 3, 4 and 8 now build.
-- [ ] Baseline saved before any edit: `uv run --all-extras fare-reshop review --model none > /tmp/reshop-none-before.json` exits 0.
-- [ ] Milestone 1 - Confirm the OpenAI request shape and commit the request builder.
+- [x] (2026-11-02) Baseline saved before any edit: `uv run fare-reshop review --model none > /tmp/reshop-none-before.json` exited 0 (no extra existed yet, so `--all-extras` was a no-op).
+- [x] (2026-11-02) Milestone 1 - Confirm the OpenAI request shape and commit the request builder.
 - [ ] Owner-run smoke check: one booking, one live request, real key, recorded in the Decision Log before plan 03 starts.
-- [ ] Milestone 2 - Model seam, transcript, canonical JSON and prompt.
-- [ ] Milestone 3 - Tools and the loop for one booking.
-- [ ] Milestone 4 - Safety check, outcome types, the report row and the serializer.
-- [ ] Milestone 5 - Tool errors and stable tool output.
-- [ ] Milestone 6 - Turn cap, repeated calls and one-booking isolation.
+- [x] (2026-11-02) Milestone 2 - Model seam, transcript, canonical JSON and prompt.
+- [x] (2026-11-02) Milestone 3 - Tools and the loop for one booking.
+- [x] (2026-11-02) Milestone 4 - Safety check, outcome types, the report row and the serializer.
+- [x] (2026-11-02) Milestone 5 - Tool errors and stable tool output.
+- [x] (2026-11-02) Milestone 6 - Turn cap, repeated calls and one-booking isolation.
 - [ ] Milestone 7 - OpenAI adapter behind the model seam.
 - [ ] Milestone 8 - `--model openai` CLI path, setup errors and doctor checks.
 - [ ] Milestone 9 - Docs and ADRs for the live model.
@@ -261,7 +261,7 @@ P26. This plan's own application of D14: each of the four check commands starts 
 
 P27. Composition gets the live entry beside the rules-only one. `review_with_live_model(data_set, environ, *, model_factory=...) -> ReviewReport` is added to `composition/review.py` in Milestone 8, and it raises `SetupError`. `environ` is a `Mapping[str, str]`. `model_factory` is a function from that mapping to an `AgentModel`. Its default builds the OpenAI adapter, checking the extra, the key and the model first (P18). The CLI reaches the environment only through a no-argument wrapper in `composition/` that passes `os.environ`, the same pattern as `standard_output_color()`. The rejected-key, unknown-model and permission tests pass a factory that returns a scripted model. `review_without_model(data_set)` keeps its signature. Options that lost: patching the adapter's module, which the repo's Python rules forbid; an environment key that reaches the real client, which would call the network in tests.
 
-P28. Milestone 1 is a documentation-and-typecheck step, not a runtime prototype. Its gate is `mypy --strict` on a committed, typed request-builder module, `fare_reshop_agent/reshopping/infrastructure/openai/request_builder.py`, which builds the two request shapes from primitive inputs using the SDK's own parameter types. The module is kept and extended in Milestone 7. Options that lost: a scratch script in `/tmp` with pasted text, because a check on pasted text proves nothing about the repo's code.
+P28. Milestone 1 is a documentation-and-typecheck step, not a runtime prototype. Its gate is `mypy --strict` on a committed, typed request-builder module, `fare_reshop_agent/reshopping/infrastructure/openai/request_builder.py`, which builds the keyword arguments of any one Responses request from primitive inputs using the SDK's own parameter types; request A (the smoke check) and the loop's later requests differ only in their input items and tools. The module is kept and extended in Milestone 7. Options that lost: a scratch script in `/tmp` with pasted text, because a check on pasted text proves nothing about the repo's code.
 
 P29. Composition constants. `REQUEST_TIMEOUT_SECONDS` (60.0) is passed to the OpenAI client as its timeout. `MAX_OUTPUT_TOKENS` (2000) is passed to the adapter and sent as `max_output_tokens`. Both are named constants in `composition/`, with no magic literal elsewhere. A response with status `incomplete` maps through the normal parsing: its text rarely parses, so it ends the booking as `bad_final_answer`, and any tool calls it holds are run, subject to the usual checks.
 
@@ -478,8 +478,44 @@ Proof: `uv run --all-extras pytest --collect-only -q tests/test_agent_review.py 
 - Observation: the index rows D9, D15, D16 and D17 change with this pass (see the Decision Log entry on index rows). Plan 02 copies the changed rows.
   Evidence: the Locked decisions section.
 
+- Observation: the Tool contract names `flight_number` for `get_booking` and `search_offers`, but Rules-only review dropped it at parse time: `Booking` and `Offer` had no such field, though the pydantic records read `flightNumber`. Milestone 3 adds `flight_number: str` to both domain types and maps it in the fixture source. The rules do not read it, and the `--model none` output is unchanged (`cmp` exit 0).
+  Evidence: `infrastructure/json_fixtures/records.py:23,55` read the field; `domain/trip.py` had no field before Milestone 3.
+- Observation: eligibility had one inline definition in `decide`. The tool `check_offer` needs the same test, so Milestone 3 adds `OfferEvaluation.is_eligible(minimum)` and `decide` uses it. One definition serves the rules, the tool and the safety check.
+  Evidence: `domain/evaluation.py`, `domain/recommendation.py`.
+- Observation: `offers_on_route` lives in `domain/trip.py`, not in `orchestration/review.py` as Milestone 3 says. The tools need it, and `review.py` imports the loop from Milestone 4 on, so a home in `review.py` would make an import cycle. It is a pure rule on two domain types, so the domain owns it. `BookingTools.for_booking` applies it, so the tools cannot hold an off-route offer.
+  Evidence: `domain/trip.py`, `orchestration/booking_tools.py`; the Milestone 3 critic found the tools accepted any offer before this change.
+- Observation: model JSON parsing (`parse_json_object`, `is_text`, `Malformed`, `canonical_arguments`) sits in `orchestration/model_json.py`, shared by the final answer and the tools. It catches `RecursionError` and rejects text that is not valid UTF-8, so a deeply nested or broken reply ends one booking and never the run.
+  Evidence: the Milestone 3 critic's probes; tests `test_deeply_nested_final_answer_is_bad_final_answer` and `test_arguments_that_are_not_utf8_stay_raw_in_trace`.
+
+- Observation: the byte-for-byte rule for `--model none` had no committed guard, only the `/tmp` baseline of the DoD. Milestone 4 adds `tests/golden/review-none-sample.json` and `tests/golden/review-none-scenarios.json`, copied from the output saved before any edit, and `test_rules_only_output_matches_golden_file` in `tests/test_cli.py` compares the CLI output with them.
+  Evidence: the Milestone 4 critic; the golden files equal `/tmp/reshop-none-before.json` and `/tmp/reshop-none-scen-before.json`.
+
 ## Decision Log
 
+- Decision: `review_with_model(source, rates, policy, agent)` takes one `ReviewAgent` value (the `AgentModel`, the `Prompt` and the `ReviewMode`) in place of the separate model and prompt of P20.
+  Rationale: the report's `mode` must come from the caller, because plan 03 runs the same function as `recorded`. A sixth argument fails ruff's five-argument rule (PLR0913). Options that lost: deriving the mode from the model, which mixes a label into the port; setting the mode after the call with `dataclasses.replace`, which builds a wrong report first.
+  Date/Author: 2026-11-02, implementer (Milestone 4).
+- Decision: `ReviewMode.OPENAI` lands in Milestone 4, not Milestone 8, because `review_with_model` needs a model-mode value. Until Milestone 8 wires the live path, `--model openai` is a setup error with exit 2 and the three-line format, so `test_error_format_for_unknown_model` keeps passing until Milestone 8 replaces it.
+  Rationale: smallest step that keeps every milestone green.
+  Date/Author: 2026-11-02, implementer (Milestone 4).
+- Decision: `_review_booking` is split into `_terms` (the boundary checks and `booking_terms`, giving `BookingTerms` or `Invalid`) and `_rules_outcome` (the route filter, `evaluate_offer` and `decide`), both private in `orchestration/review.py`. `review_snapshot` and `review_with_model` both use them. No public `review_booking` is added.
+  Rationale: the model path needs the `BookingTerms` for its tools and the safety check. A public `review_booking` that returns only the recommendation would force the model path to compute the terms twice. The rule steps still exist once, which is the intent of P20.
+  Date/Author: 2026-11-02, implementer (Milestone 4).
+- Decision: the new outcome types carry their status as a `ClassVar`, as the built `Rebook`, `Keep` and `Invalid` do, and the serializer maps `decided_by` by an exhaustive `match`.
+  Rationale: one pattern for all six outcome types. A `ClassVar` is not a field, so status still comes from the type and cannot disagree with it.
+  Date/Author: 2026-11-02, implementer (Milestone 4).
+- Decision: Milestone 1 result. All six confirmations hold, so D21 stands and Milestone 2 may start. SDK: `openai` 3.42.1, in `uv.lock` through the optional extra `live`. Date: 2026-11-02. Pages read: the Responses create reference, the function calling guide, the structured outputs guide, the GPT-6 Luna model page, the reasoning-effort section of the deployment checklist, and the changelog entry of 2026-09-22, all under `developers.openai.com/api/docs`; plus the installed SDK types.
+  First, function tools: `FunctionToolParam` with `type: "function"`, `name`, `parameters` and `strict` (all required in the SDK); strict mode needs `additionalProperties: false` and every property in `required` (function calling guide, "Strict mode").
+  Second, final answer: `text.format` as `ResponseFormatTextJSONSchemaConfigParam` with `type: "json_schema"`, `name`, `schema` and `strict: true`; a nullable field is the type list `["string", "null"]` and stays in `required` (structured outputs guide, "All fields must be required").
+  Third, `store: Optional[bool]` on `responses.create`; with store off the caller replays every item each turn (function calling guide).
+  Fourth, `reasoning: Reasoning` with `effort: ReasoningEffort`, whose literal includes `"none"`. The GPT-6 Luna model page says `reasoning.effort` supports `none`, `low`, `medium`, `high`, `xhigh` and `max`. `gpt-6-luna` is in the SDK's `ChatModel` literal and in the model catalog. Prices per 1M tokens (changelog 2026-09-22, standard tier, prompts up to 272K tokens): 0.10 USD input, 0.01 USD cached input, 0.50 USD output.
+  Fifth, call ids: `ResponseFunctionToolCallParam` has `call_id: Required[str]`, `name`, `arguments: str`, `type: "function_call"`; `FunctionCallOutput` has `call_id: Required[str]`, `output` (text, or a list of content parts; this plan sends text), `type: "function_call_output"`. The reference gives `call_id` a length of 1 to 64 characters and no other rule; with store off the provider holds no record to check it against, so the loop's ids (`call_<turn>_<n>`, at most 9 characters under the 10-turn cap) are valid input. The docs do not say this in words; the owner-run smoke check is the live proof.
+  Sixth, replies: `ResponseUsage.input_tokens` and `output_tokens`; a refusal is `ResponseOutputRefusal` with `type: "refusal"` and `refusal` text inside a message's content; `Response.status` and `Response.incomplete_details.reason`, which includes `max_output_tokens`. Errors in `openai._exceptions`: `APIConnectionError(*, message, request)`, `APITimeoutError(request)` which subclasses `APIConnectionError`, and `APIStatusError(message, *, response, body)` with the subclasses `AuthenticationError`, `PermissionDeniedError`, `NotFoundError`, `RateLimitError` and `InternalServerError`.
+  The request builder groups the model name and the output cap in `ModelSettings`, because ruff's argument limit (PLR0913, five) would otherwise fail on six keyword arguments.
+  mypy:
+  Success: no issues found in 1 source file
+  Rationale: Milestone 1's promote criteria.
+  Date/Author: 2026-11-02, implementer.
 - Decision: the model reply is one union of four types. `ToolCalls` holds the calls, the raw argument text and an optional text. A `ToolCalls` with non-null text ends the booking as `bad_final_answer` (P2, P7, D18).
   Rationale: a reply can hold tool calls and text together, so one type must hold both, and the rule matches the index.
   Date/Author: 2026-11-02, plan writer (round 3).

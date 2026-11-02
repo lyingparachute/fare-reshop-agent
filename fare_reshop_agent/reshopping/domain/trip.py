@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from enum import StrEnum
@@ -37,6 +38,7 @@ class Booking:
     departure: datetime
     arrival: datetime
     carrier: str
+    flight_number: str
     stops: int
     cabin: Cabin
     price_per_passenger: Money
@@ -86,6 +88,7 @@ class Offer:
     departure: datetime
     arrival: datetime
     carrier: str
+    flight_number: str
     stops: int
     cabin: Cabin
     price: Money
@@ -112,6 +115,11 @@ class Offer:
             destination=self.destination,
             departure_date=self.departure.date(),
         )
+
+
+def offers_on_route(offers: Sequence[Offer], booking: Booking) -> tuple[Offer, ...]:
+    on_route = (offer for offer in offers if offer.route == booking.route)
+    return tuple(sorted(on_route, key=lambda offer: offer.offer_id))
 
 
 def _require_naive(moment: datetime, name: str) -> None:
